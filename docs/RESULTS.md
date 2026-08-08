@@ -18,9 +18,10 @@ lower is better.
 | `xlm-roberta-base` | | | | |
 | `Multilingual-MiniLM-L12-H384` | | | | |
 
-**Model chosen:** _____
+Model chosen: google/muril-base-cased
 
-**Reason:** _____
+Reason: mDistilBERT fragments Nepali 1.95× worse than MuRIL (2.937 vs 1.508 tokens/word), exceeding the pre-registered 1.5× switching threshold. MuRIL also leads on Hindi and English with zero UNK.
+
 
 > Decision rule: if mDistilBERT's Nepali fertility exceeds ~1.5x MuRIL's, MuRIL becomes
 > primary. Record the reason either way -- this is a genuine finding about Nepali
