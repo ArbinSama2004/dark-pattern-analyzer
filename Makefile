@@ -69,7 +69,7 @@ evaluate: ## Evaluate: macro-F1, per-class, per-language
 	cd ml && uv run python -m ml.evaluate --artifacts ../$(ARTIFACTS) --data ../$(DATA)
 
 .PHONY: export
-export: ## Export to ONNX and quantize to int8
+export: ## Export to ONNX (fp32; int8 failed parity, see docs/RESULTS.md)
 	cd ml && uv run python -m ml.export_onnx --artifacts ../$(ARTIFACTS)
 
 .PHONY: parity

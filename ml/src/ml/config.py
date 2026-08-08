@@ -114,7 +114,10 @@ class Paths:
 
     #: Colab only. Mount Drive and checkpoint there -- Colab disconnects, and
     #: it will happen 40 minutes into a run.
-    drive_checkpoints: Path = Path("/content/drive/MyDrive/dp_checkpoints")
+    # Colab checkpoints live on local disk, NOT Drive. save_total_limit=1 keeps one
+    # checkpoint, but a full Drive still killed a run mid-training. Only the final
+    # artifact bundle is copied to Drive, in section 9 of the notebook.
+    drive_checkpoints: Path = Path("/content/dp_checkpoints")
 
     def split_dir(self, split: str = SPLIT_PRIMARY) -> Path:
         return self.data_root / split
