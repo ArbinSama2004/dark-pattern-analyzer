@@ -1,0 +1,35 @@
+{
+  "version": "v2",
+  "description": "v1 plus adversarial hard negatives (benign text using dark-pattern vocabulary legitimately)",
+  "total_rows": 28483,
+  "hard_negatives_added": 1483,
+  "splits": {
+    "train": {
+      "total": 17427,
+      "v1": 16508,
+      "hard_negatives": 919
+    },
+    "val": {
+      "total": 4638,
+      "v1": 4361,
+      "hard_negatives": 277
+    },
+    "test": {
+      "total": 6418,
+      "v1": 6131,
+      "hard_negatives": 287
+    }
+  },
+  "label_positives": {
+    "confirmshaming": 3000,
+    "false_urgency": 3240,
+    "forced_action": 3000,
+    "obstruction": 3000,
+    "scarcity": 3378,
+    "sneaking": 3000,
+    "social_proof": 3120,
+    "benign": 7483
+  },
+  "templates": 924,
+  "seed": 13
+}
