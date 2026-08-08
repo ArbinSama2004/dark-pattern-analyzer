@@ -1,0 +1,5 @@
+[
+  "input_ids",
+  "attention_mask",
+  "token_type_ids"
+]

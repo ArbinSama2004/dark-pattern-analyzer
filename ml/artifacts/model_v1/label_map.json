@@ -1,0 +1,22 @@
+{
+  "labels": [
+    "confirmshaming",
+    "false_urgency",
+    "forced_action",
+    "obstruction",
+    "scarcity",
+    "sneaking",
+    "social_proof",
+    "benign"
+  ],
+  "label_to_id": {
+    "confirmshaming": 0,
+    "false_urgency": 1,
+    "forced_action": 2,
+    "obstruction": 3,
+    "scarcity": 4,
+    "sneaking": 5,
+    "social_proof": 6,
+    "benign": 7
+  }
+}

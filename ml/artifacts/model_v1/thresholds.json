@@ -1,0 +1,169 @@
+{
+  "default_profile": "precision",
+  "tuned_on": "split_template_disjoint/val",
+  "profiles": {
+    "precision": {
+      "thresholds": {
+        "confirmshaming": 0.11,
+        "false_urgency": 0.58,
+        "forced_action": 0.43,
+        "obstruction": 0.54,
+        "scarcity": 0.62,
+        "sneaking": 0.48,
+        "social_proof": 0.46,
+        "benign": 0.17
+      },
+      "val_per_class": {
+        "confirmshaming": {
+          "f1": 1.0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "false_urgency": {
+          "f1": 0.8822768434670116,
+          "precision": 0.7930232558139535,
+          "recall": 0.9941690962099126,
+          "constraint_unmet": true
+        },
+        "forced_action": {
+          "f1": 0.9885057471264368,
+          "precision": 0.9772727272727273,
+          "recall": 1.0
+        },
+        "obstruction": {
+          "f1": 0.9928741092636579,
+          "precision": 0.9928741092636579,
+          "recall": 0.9928741092636579
+        },
+        "scarcity": {
+          "f1": 0.963579604578564,
+          "precision": 0.929718875502008,
+          "recall": 1.0
+        },
+        "sneaking": {
+          "f1": 0.9805825242718447,
+          "precision": 0.9619047619047619,
+          "recall": 1.0
+        },
+        "social_proof": {
+          "f1": 0.8170011806375442,
+          "precision": 0.947945205479452,
+          "recall": 0.7178423236514523
+        },
+        "benign": {
+          "f1": 0.9646234676007005,
+          "precision": 0.9978260869565218,
+          "recall": 0.9335593220338984
+        }
+      }
+    },
+    "balanced": {
+      "thresholds": {
+        "confirmshaming": 0.11,
+        "false_urgency": 0.58,
+        "forced_action": 0.43,
+        "obstruction": 0.54,
+        "scarcity": 0.62,
+        "sneaking": 0.48,
+        "social_proof": 0.46,
+        "benign": 0.17
+      },
+      "val_per_class": {
+        "confirmshaming": {
+          "f1": 1.0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "false_urgency": {
+          "f1": 0.8822768434670116,
+          "precision": 0.7930232558139535,
+          "recall": 0.9941690962099126
+        },
+        "forced_action": {
+          "f1": 0.9885057471264368,
+          "precision": 0.9772727272727273,
+          "recall": 1.0
+        },
+        "obstruction": {
+          "f1": 0.9928741092636579,
+          "precision": 0.9928741092636579,
+          "recall": 0.9928741092636579
+        },
+        "scarcity": {
+          "f1": 0.963579604578564,
+          "precision": 0.929718875502008,
+          "recall": 1.0
+        },
+        "sneaking": {
+          "f1": 0.9805825242718447,
+          "precision": 0.9619047619047619,
+          "recall": 1.0
+        },
+        "social_proof": {
+          "f1": 0.8170011806375442,
+          "precision": 0.947945205479452,
+          "recall": 0.7178423236514523
+        },
+        "benign": {
+          "f1": 0.9646234676007005,
+          "precision": 0.9978260869565218,
+          "recall": 0.9335593220338984
+        }
+      }
+    },
+    "recall": {
+      "thresholds": {
+        "confirmshaming": 0.11,
+        "false_urgency": 0.58,
+        "forced_action": 0.43,
+        "obstruction": 0.54,
+        "scarcity": 0.62,
+        "sneaking": 0.48,
+        "social_proof": 0.08,
+        "benign": 0.17
+      },
+      "val_per_class": {
+        "confirmshaming": {
+          "f1": 1.0,
+          "precision": 1.0,
+          "recall": 1.0
+        },
+        "false_urgency": {
+          "f1": 0.8822768434670116,
+          "precision": 0.7930232558139535,
+          "recall": 0.9941690962099126
+        },
+        "forced_action": {
+          "f1": 0.9885057471264368,
+          "precision": 0.9772727272727273,
+          "recall": 1.0
+        },
+        "obstruction": {
+          "f1": 0.9928741092636579,
+          "precision": 0.9928741092636579,
+          "recall": 0.9928741092636579
+        },
+        "scarcity": {
+          "f1": 0.963579604578564,
+          "precision": 0.929718875502008,
+          "recall": 1.0
+        },
+        "sneaking": {
+          "f1": 0.9805825242718447,
+          "precision": 0.9619047619047619,
+          "recall": 1.0
+        },
+        "social_proof": {
+          "f1": 0.3588802202845342,
+          "precision": 0.23040659988214496,
+          "recall": 0.8112033195020747
+        },
+        "benign": {
+          "f1": 0.9646234676007005,
+          "precision": 0.9978260869565218,
+          "recall": 0.9335593220338984
+        }
+      }
+    }
+  }
+}

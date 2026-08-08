@@ -1,0 +1,19 @@
+{
+  "base_model": "google/muril-base-cased",
+  "split": "split_template_disjoint",
+  "dataset": "synthetic_v2_1",
+  "epochs_configured": 3,
+  "val": {
+    "eval_loss": 0.1298169046640396,
+    "eval_macro_f1_dark": 0.8240073607845766,
+    "eval_micro_f1": 0.909706546275395,
+    "eval_exact_match": 0.86965904186448
+  },
+  "test_flat_threshold": {
+    "test_loss": 0.13891266286373138,
+    "test_macro_f1_dark": 0.8279936594883418,
+    "test_micro_f1": 0.902862580287051,
+    "test_exact_match": 0.8661982825917253
+  },
+  "note": "Flat 0.5 threshold. See metrics.json for tuned per-class results."
+}

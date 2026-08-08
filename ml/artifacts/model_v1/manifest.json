@@ -1,0 +1,9 @@
+{
+  "model_version": "1.0.0",
+  "base_model": "google/muril-base-cased",
+  "max_length": 64,
+  "text_column": "model_input",
+  "quantized": false,
+  "dataset": "synthetic_v2_1",
+  "quantization": "fp32"
+}
