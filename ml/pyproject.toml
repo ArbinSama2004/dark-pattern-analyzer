@@ -23,6 +23,7 @@ dependencies = [
     "optimum[onnxruntime]>=1.22",
     "matplotlib>=3.9",
     "seaborn>=0.13",
+    "onnxscript>=0.7.1",
 ]
 
 [project.optional-dependencies]
