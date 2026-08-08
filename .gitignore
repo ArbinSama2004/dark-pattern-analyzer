@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# uv
+.uv/
+
+# Node
+node_modules/
+.pnpm-store/
+dist/
+.output/
+.wxt/
+
+# Environment
+.env
+.env.local
+
+# Model artifacts -- large binaries.
+# Ship model.onnx via a GitHub Release or Git LFS, not in the tree.
+# The small evidence files below are committed on purpose.
+ml/artifacts/**/model*.onnx
+ml/artifacts/**/pytorch/
+ml/checkpoints/
+ml/reports/*.pkl
+!ml/artifacts/**/label_map.json
+!ml/artifacts/**/thresholds.json
+!ml/artifacts/**/manifest.json
+!ml/artifacts/**/metrics.json
+!ml/artifacts/**/card.md
+
+# Notebook noise
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/

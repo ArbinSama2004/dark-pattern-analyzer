@@ -1,0 +1,83 @@
+{
+  "seed": 13,
+  "total_rows": 27000,
+  "labels": [
+    "confirmshaming",
+    "false_urgency",
+    "forced_action",
+    "obstruction",
+    "scarcity",
+    "sneaking",
+    "social_proof",
+    "benign"
+  ],
+  "langs": [
+    "en",
+    "hi",
+    "ne"
+  ],
+  "per_primary_label": {
+    "benign": 6000,
+    "false_urgency": 3000,
+    "sneaking": 3000,
+    "forced_action": 3000,
+    "scarcity": 3000,
+    "social_proof": 3000,
+    "obstruction": 3000,
+    "confirmshaming": 3000
+  },
+  "per_lang": {
+    "hi": 9000,
+    "ne": 9000,
+    "en": 9000
+  },
+  "per_label_lang": {
+    "benign/hi": 2000,
+    "benign/ne": 2000,
+    "false_urgency/ne": 1000,
+    "sneaking/ne": 1000,
+    "forced_action/en": 1000,
+    "scarcity/en": 1000,
+    "social_proof/en": 1000,
+    "social_proof/ne": 1000,
+    "forced_action/hi": 1000,
+    "sneaking/hi": 1000,
+    "obstruction/hi": 1000,
+    "confirmshaming/en": 1000,
+    "false_urgency/en": 1000,
+    "false_urgency/hi": 1000,
+    "forced_action/ne": 1000,
+    "obstruction/en": 1000,
+    "scarcity/hi": 1000,
+    "confirmshaming/hi": 1000,
+    "obstruction/ne": 1000,
+    "sneaking/en": 1000,
+    "social_proof/hi": 1000,
+    "benign/en": 2000,
+    "confirmshaming/ne": 1000,
+    "scarcity/ne": 1000
+  },
+  "multi_label_rows": 738,
+  "label_positives": {
+    "confirmshaming": 3000,
+    "false_urgency": 3240,
+    "forced_action": 3000,
+    "obstruction": 3000,
+    "scarcity": 3378,
+    "sneaking": 3000,
+    "social_proof": 3120,
+    "benign": 6000
+  },
+  "unique_templates": 714,
+  "split_template_disjoint": {
+    "train": 16508,
+    "val": 4361,
+    "test": 6131
+  },
+  "split_random": {
+    "test": 4050,
+    "val": 4050,
+    "train": 18900
+  },
+  "shortfalls": {}
+}
