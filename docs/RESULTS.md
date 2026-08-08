@@ -332,3 +332,31 @@ rather than defects:
    multi-label validation split.
 6. The transformer only ties the TF-IDF baseline on synthetic data. What does that say
    about the dataset rather than the model?
+
+## 9. Stage 1 sign-off
+
+Stage 1 exit condition from docs/STAGES.md: "trained model + artifact bundle, parity
+test passing." Both are now satisfied.
+
+| Item | Status |
+|---|---|
+| Model trained (MuRIL, v2.1, seed 13) | done -- macro-F1 (dark) 0.9019, tuned thresholds |
+| Artifact bundle exported | done -- model.onnx, 951.65 MB, fp32 |
+| Parity test | **PASSED** -- mean abs diff 0.00000, 100.00% label agreement, all 8 classes |
+| Per-language results | filled in Section 3 |
+| int8 quantization | evaluated and rejected -- see Section 4 |
+| Bundle placed in ml/artifacts/model_v1 | done, gitignored per repo policy |
+
+**Still open, deliberately deferred, not blocking:**
+
+- Section 5 (latency) -- depends on Stage 2 backend existing.
+- Section 6 (real gold set) -- Stage 4 scope.
+- Section 7 (systematic error analysis) -- worth revisiting once the gold set exists;
+  the transformer-vs-sneaking confusion on "verify account" templates (Section 3) is
+  a candidate first entry.
+- social_proof recall and confirmshaming precision -- root-caused to the 0%
+  multi-label validation split, fix deferred to a future dataset version, not v2.2
+  (see handoff Section 8: three dataset versions is the agreed limit).
+
+**Stage 1 is closed as of this run.** Next work starts Stage 2: FastAPI inference
+service, as scoped in the handoff.
