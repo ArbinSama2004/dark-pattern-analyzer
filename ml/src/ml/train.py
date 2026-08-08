@@ -142,7 +142,7 @@ def train(
         load_best_model_at_end=True,
         metric_for_best_model=cfg.metric_for_best_model,
         greater_is_better=True,
-        save_total_limit=2,
+        save_total_limit=1,  # each MuRIL checkpoint is ~950 MB of Drive quota
         fp16=use_fp16,
         seed=cfg.seed,
         report_to=[],  # no wandb prompt in Colab
@@ -184,6 +184,7 @@ def train(
         max_length=cfg.max_length,
         text_column=cfg.text_column,
         quantized=False,  # set True by export_onnx.py
+        dataset=str(data_root).rstrip('/').split('/')[-1],
     ).write(out)
 
     (out / "train_metrics.json").write_text(
@@ -191,6 +192,7 @@ def train(
             {
                 "base_model": cfg.model_name,
                 "split": SPLIT_PRIMARY,
+                "dataset": str(data_root).rstrip("/").split("/")[-1],
                 "epochs_configured": cfg.epochs,
                 "val": {k: v for k, v in val_metrics.items() if isinstance(v, float)},
                 "test_flat_threshold": {

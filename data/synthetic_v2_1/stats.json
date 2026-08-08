@@ -1,0 +1,41 @@
+{
+  "version": "v2.1",
+  "derived_from": "synthetic_v2",
+  "method": "label patch only -- text, splits and template_ids unchanged",
+  "annotation_rule": "Manipulative when it induces urgency or peer pressure via unverifiable real-time activity; benign when it is a static verifiable aggregate. A real stated deadline is benign; a fabricated or resetting one is dark.",
+  "relabelled_to_benign": [
+    "false_urgency:en:16",
+    "false_urgency:hi:16",
+    "false_urgency:ne:16",
+    "social_proof:en:05",
+    "social_proof:en:10",
+    "social_proof:hi:05",
+    "social_proof:hi:10",
+    "social_proof:ne:05",
+    "social_proof:ne:10"
+  ],
+  "dropped_templates": [
+    "hardneg:social_proof:en:00",
+    "hardneg:social_proof:hi:00",
+    "hardneg:social_proof:ne:00"
+  ],
+  "reasons": {
+    "social_proof:*:05": "static verifiable rating count, not real-time activity",
+    "social_proof:*:10": "verifiable sales aggregate, no urgency framing",
+    "false_urgency:*:16": "legitimate stated shipping cutoff, not a fabricated deadline",
+    "hardneg:social_proof:*:00": "duplicate of an existing v1 benign template"
+  },
+  "rows_relabelled": 549,
+  "rows_dropped": 33,
+  "total_rows": 28450,
+  "label_positives": {
+    "confirmshaming": 3000,
+    "false_urgency": 3015,
+    "forced_action": 3000,
+    "obstruction": 3000,
+    "scarcity": 3378,
+    "sneaking": 3000,
+    "social_proof": 2796,
+    "benign": 7999
+  }
+}

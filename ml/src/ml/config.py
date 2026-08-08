@@ -153,6 +153,10 @@ class ArtifactManifest:
     max_length: int = 64
     text_column: str = "model_input"
     quantized: bool = True
+    # Which dataset directory trained this bundle (e.g. "synthetic_v2_1").
+    # The directory name model_v1 is a RELEASE version, not a data version,
+    # so the data provenance has to be recorded explicitly.
+    dataset: str = "unknown"
 
     def write(self, path: Path) -> None:
         path.mkdir(parents=True, exist_ok=True)
@@ -172,6 +176,7 @@ class ArtifactManifest:
                     "max_length": self.max_length,
                     "text_column": self.text_column,
                     "quantized": self.quantized,
+                    "dataset": self.dataset,
                 },
                 indent=2,
             ),

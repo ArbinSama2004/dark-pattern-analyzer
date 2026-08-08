@@ -135,6 +135,18 @@ def tune(artifacts: Path, data_root: str) -> dict:
                 f"{d['recall']:>8.3f}{d['f1']:>8.3f}{flag}"
             )
 
+        # A threshold pinned to the edge of the grid means the class is not
+        # confidently separated -- this is what silently made the recall
+        # profile useless for social_proof in v2 (thr 0.05, precision 0.155).
+        edge = [l for l in LABELS if thresholds[l] <= 0.06 or thresholds[l] >= 0.94]
+        weak = [l for l in LABELS if detail[l]["precision"] < 0.50]
+        if edge:
+            print(f"  WARNING: threshold at grid edge for {', '.join(edge)}.")
+            print("           The model is not separating this class confidently.")
+        if weak:
+            print(f"  WARNING: precision below 0.50 for {', '.join(weak)} --"
+                  " do not ship this profile.")
+
     return result
 
 

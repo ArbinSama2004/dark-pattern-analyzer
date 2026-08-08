@@ -810,6 +810,38 @@ def fill(template: str, lang: str, rng: random.Random) -> str:
     return SLOT_RE.sub(sub, template)
 
 
+# ---------------------------------------------------------------------------
+# Label overrides (v2.1)
+#
+# These templates were originally filed under a dark class but violate the
+# annotation rule: a statistic is manipulative only when it induces urgency or
+# peer pressure through UNVERIFIABLE REAL-TIME ACTIVITY. A static, verifiable
+# aggregate is benign, and a real stated deadline is benign.
+#
+# Overriding by template_id rather than moving the strings between lists keeps
+# every template index stable, so template_ids stay comparable across dataset
+# versions. Moving them would silently renumber everything after them.
+# ---------------------------------------------------------------------------
+LABEL_OVERRIDES = {
+    # "Rated by {NUM_BIG} verified buyers in {CITY}" -- auditable rating count.
+    # The benign list already contained "{NUM_BIG} verified reviews", so the same
+    # concept carried both labels. That contradiction collapsed social_proof's
+    # tuned threshold to 0.13 and leaked 19% of its rows into other classes.
+    "social_proof:en:05": "benign",
+    "social_proof:hi:05": "benign",
+    "social_proof:ne:05": "benign",
+    # "Bestseller -- {NUM_BIG} sold this week" -- verifiable sales aggregate.
+    "social_proof:en:10": "benign",
+    "social_proof:hi:10": "benign",
+    "social_proof:ne:10": "benign",
+    # "Order in {TIME} to get delivery in {DAYS} days" -- a real shipping cutoff.
+    # The model correctly predicted [] on these and was penalised for it.
+    "false_urgency:en:16": "benign",
+    "false_urgency:hi:16": "benign",
+    "false_urgency:ne:16": "benign",
+}
+
+
 def parse_template(raw: str):
     if "||" in raw:
         text, extra = raw.split("||", 1)
@@ -846,12 +878,18 @@ def generate():
                         continue
                     seen.add(key)
                     tag, role = rng.choice(TAGS[label])
-                    labels = [label] + [e for e in extra_labels if e != label]
+                    override = LABEL_OVERRIDES.get(template_id)
+                    if override is not None:
+                        labels = [override]
+                        primary = override
+                    else:
+                        labels = [label] + [e for e in extra_labels if e != label]
+                        primary = label
                     rows.append(
                         {
                             "text": text,
                             "labels": "|".join(labels),
-                            "primary_label": label,
+                            "primary_label": primary,
                             "lang": lang,
                             "tag": tag,
                             "role": role,
