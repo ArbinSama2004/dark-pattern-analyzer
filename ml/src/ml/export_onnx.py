@@ -72,6 +72,21 @@ def export_fp32(artifacts: Path, cfg: TrainConfig) -> Path:
 
     print(f"Exporting fp32 ONNX -> {dest}")
     print(f"  inputs: {input_names}")
+    # Two things here are load-bearing; both were established the hard way.
+    #
+    # 1. Use the torch.export (dynamo) exporter, the default since torch 2.9.
+    #    Measured: its fp32 graph is numerically exact -- mean |dp| 0.00000 and
+    #    100.00% label agreement in parity_test. Do NOT pass dynamo=False. The
+    #    legacy TorchScript exporter traces the padding branch in transformers'
+    #    masking_utils.py as a CONSTANT at whatever length the sample batch
+    #    happened to be, so the graph is silently wrong at every other sequence
+    #    length. dynamic_axes cannot undo an already-frozen branch, and the only
+    #    hint is a TracerWarning that reads like boilerplate.
+    #
+    # 2. Ask for opset 18, not 17. dynamo emits 18 regardless; requesting 17
+    #    triggers an onnxscript downgrade that leaves stale value_info, and
+    #    quantize_dynamic then aborts with
+    #      [ShapeInferenceError] Inferred shape and existing shape differ ... (768) vs (8)
     torch.onnx.export(
         model,
         inputs,
@@ -79,25 +94,75 @@ def export_fp32(artifacts: Path, cfg: TrainConfig) -> Path:
         input_names=input_names,
         output_names=["logits"],
         dynamic_axes=dynamic_axes,
-        opset_version=17,
+        opset_version=18,
         do_constant_folding=True,
     )
+
+    # The dynamo exporter writes weights to a sidecar .data file, which leaves
+    # model.onnx a ~0.1 MB pointer that dies as soon as the bundle moves -- and
+    # a parity test passes happily while the sidecar still sits beside it.
+    # Collapse everything into one self-contained file.
+    import onnx
+
+    graph = onnx.load(str(dest), load_external_data=True)
+    # Intermediate shape annotations are optional metadata, and one mismatch
+    # anywhere in the graph aborts quantization. Drop them.
+    del graph.graph.value_info[:]
+    onnx.save_model(graph, str(dest), save_as_external_data=False)
+    del graph
+    Path(str(dest) + ".data").unlink(missing_ok=True)
+
+    if dest.stat().st_size < 50e6:
+        raise SystemExit(
+            f"{dest.name} is only {dest.stat().st_size / 1e6:.1f} MB -- the weights "
+            "are still external. The bundle must be one self-contained file."
+        )
 
     (artifacts / "onnx_inputs.json").write_text(json.dumps(input_names, indent=2), encoding="utf-8")
     print(f"  size: {dest.stat().st_size / 1e6:.1f} MB")
     return dest
 
 
-def quantize_int8(fp32_path: Path, artifacts: Path) -> Path:
-    """Dynamic int8 quantization of the linear layers."""
+def quantize_int8(
+    fp32_path: Path, artifacts: Path, quantize_embeddings: bool = False
+) -> Path:
+    """Dynamic int8 quantization of the linear layers.
+
+    ``quantize_embeddings`` additionally quantizes the embedding table, which
+    appears in the graph as a ``Gather``. For MuRIL that choice dominates file
+    size: its 197k-token vocabulary is roughly 64% of the parameters, so
+    including Gather yields ~240 MB against ~700 MB without it.
+
+    Excluding the embedding table does NOT rescue accuracy. That was measured,
+    not assumed. MuRIL, 200 validation rows, three export routes:
+
+        Gather included : mean |dp| 0.09181, agreement 83.81%
+        MatMul only     : mean |dp| 0.09302, agreement 84.00%
+        MatMul only     : mean |dp| 0.09308, agreement 84.00%  (opset 18 re-export)
+        fp32            : mean |dp| 0.00000, agreement 100.00%
+
+    All seven dark classes reported ZERO positives against 17-22 in PyTorch,
+    while benign rose from 63 to ~183 of 200 rows. Differences between
+    quantization schemes are noise; the gap to fp32 is total. Dynamic int8 is
+    not safe for this model under this onnxruntime build, so ``main`` ships fp32
+    unless --quantize is passed explicitly.
+
+    If you retry int8, ``per_channel=True`` and ``reduce_range=True`` are the
+    documented accuracy-recovery options and the parity test decides. Never
+    trust the smoke test alone: it prints plausible probabilities for a model
+    that has been destroyed.
+    """
     from onnxruntime.quantization import QuantType, quantize_dynamic
 
+    op_types = ["MatMul", "Gather"] if quantize_embeddings else ["MatMul"]
     dest = artifacts / "model.onnx"
     print(f"\nQuantizing int8 -> {dest}")
+    print(f"  op types: {op_types}")
     quantize_dynamic(
         model_input=str(fp32_path),
         model_output=str(dest),
         weight_type=QuantType.QInt8,
+        op_types_to_quantize=op_types,
         extra_options={"MatMulConstBOnly": True},
     )
     before = fp32_path.stat().st_size / 1e6
@@ -169,7 +234,7 @@ def write_card(artifacts: Path, cfg: TrainConfig) -> None:
 | Task | Multi-label text classification, 8 classes |
 | Languages | English, Hindi, Nepali |
 | Version | {manifest.get("model_version", "1.0.0")} |
-| Format | ONNX, dynamic int8 |
+| Format | ONNX, {manifest.get("quantization", "fp32")} |
 | Max sequence length | {manifest.get("max_length", cfg.max_length)} |
 | Input format | `{manifest.get("text_column", cfg.text_column)}` |
 
@@ -226,7 +291,19 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Export to ONNX and quantize")
     ap.add_argument("--artifacts", default="../ml/artifacts/model_v1")
     ap.add_argument("--keep-fp32", action="store_true", help="keep the fp32 graph for debugging")
-    ap.add_argument("--no-quantize", action="store_true", help="ship fp32 (use if int8 hurts)")
+    ap.add_argument(
+        "--quantize",
+        action="store_true",
+        help="attempt int8 (OFF by default: it failed parity on MuRIL, see quantize_int8)",
+    )
+    ap.add_argument(
+        "--no-quantize", action="store_true", help="explicitly ship fp32 (already the default)"
+    )
+    ap.add_argument(
+        "--quantize-embeddings",
+        action="store_true",
+        help="with --quantize, also quantize the embedding table",
+    )
     args = ap.parse_args()
 
     artifacts = Path(args.artifacts)
@@ -237,23 +314,32 @@ def main() -> int:
 
     fp32 = export_fp32(artifacts, cfg)
 
-    if args.no_quantize:
+    do_quantize = args.quantize and not args.no_quantize
+
+    if not do_quantize:
         shutil.copy(fp32, artifacts / "model.onnx")
         final = artifacts / "model.onnx"
-        print("\nSkipped quantization; shipping fp32.")
+        print("\nShipping fp32 (int8 is opt-in via --quantize; it failed parity here).")
     else:
-        final = quantize_int8(fp32, artifacts)
+        final = quantize_int8(
+            fp32, artifacts, quantize_embeddings=args.quantize_embeddings
+        )
 
     verify_loads(final, artifacts, cfg)
 
     if mp.exists():
         blob = json.loads(mp.read_text(encoding="utf-8"))
-        blob["quantized"] = not args.no_quantize
+        blob["quantized"] = do_quantize
+        blob["quantization"] = (
+            ("int8-matmul-gather" if args.quantize_embeddings else "int8-matmul")
+            if do_quantize
+            else "fp32"
+        )
         mp.write_text(json.dumps(blob, indent=2), encoding="utf-8")
 
     write_card(artifacts, cfg)
 
-    if not args.keep_fp32 and not args.no_quantize:
+    if not args.keep_fp32 and do_quantize:
         fp32.unlink(missing_ok=True)
         print(f"Removed {fp32.name} (pass --keep-fp32 to retain it)")
 
