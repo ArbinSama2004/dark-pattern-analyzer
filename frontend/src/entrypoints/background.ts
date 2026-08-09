@@ -123,12 +123,45 @@ async function handleClassifyCandidates(
     };
     // Fire-and-forget: batches must not wait on this write to keep going.
     void chrome.storage.session.set({ [findingsStorageKey(knownTabId)]: stored });
+
+    // This push is the actual fix for "overlay freezes on large pages" --
+    // the storage write above feeds the popup/side panel (they listen on
+    // chrome.storage.onChanged), but the on-page overlay only listens for
+    // this message (see content.ts's dp/classify-progress handler and
+    // messaging.ts's ClassifyProgressMessage doc comment). Without this
+    // call the overlay never updates on any page with more than one batch,
+    // regardless of what the original sendMessage/sendResponse channel
+    // does. Wrapped in a catch: if the tab navigated away or has no content
+    // script (e.g. a chrome:// page), sendMessage rejects and that's fine
+    // -- there's nothing to update.
+    chrome.tabs
+      .sendMessage(knownTabId, {
+        type: "dp/classify-progress",
+        results: withFindings,
+        pageScore,
+      })
+      // Log real errors so they appear in the service-worker console
+      // (chrome://extensions → "service worker" link). The previous
+      // .catch(() => {}) was hiding failures that look like delivery
+      // succeeding. Navigated-away tabs produce a benign
+      // "Could not establish connection" error that is safe to ignore,
+      // but any other error (e.g. missing host permission, wrong tabId)
+      // should be visible during debugging.
+      .catch((err: unknown) =>
+        console.warn("[dark-pattern-analyzer] sendMessage(dp/classify-progress) failed:", err),
+      );
+
     return { items: withFindings, pageScore };
   }
 
+  console.log(
+    `[dark-pattern-analyzer] tab ${knownTabId}: ${capped.length} candidates ` +
+      `(${uncached.length} uncached) -> ${batches.length} batch(es)`,
+  );
+
   let latest = persistProgress(); // rule-only findings visible immediately, before any batch returns
 
-  for (const batch of batches) {
+  for (const [i, batch] of batches.entries()) {
     if (batch.length === 0) continue;
     try {
       const response = await withRetry(() =>
@@ -141,6 +174,10 @@ async function handleClassifyCandidates(
             ref: candidate.id,
           })),
         }),
+      );
+      console.log(
+        `[dark-pattern-analyzer] batch ${i + 1}/${batches.length}: ` +
+          `${response.results.length} results, ${response.meta.inference_ms}ms inference`,
       );
       for (const result of response.results) {
         if (result.ref) cache[result.ref] = result;
@@ -161,10 +198,19 @@ async function handleClassifyCandidates(
 
 export default defineBackground(() => {
   chrome.runtime.onMessage.addListener(
-    (message: ExtensionMessage, sender, sendResponse) => {
+    (message: ExtensionMessage | { type: "dp/get-tab-id" }, sender, sendResponse) => {
+      // Content scripts cannot call chrome.tabs.getCurrent() -- they have
+      // no direct API to know their own tabId. We answer with the sender's
+      // tabId so content.ts can subscribe to the right storage key
+      // (findings:<tabId>) via chrome.storage.onChanged.
+      if (message.type === "dp/get-tab-id") {
+        sendResponse({ tabId: sender.tab?.id ?? null });
+        return false;
+      }
+
       if (message.type !== "dp/classify-candidates") return undefined;
 
-      handleClassifyCandidates(message, sender.tab?.id)
+      handleClassifyCandidates(message as ExtensionMessage & { type: "dp/classify-candidates" }, sender.tab?.id)
         .then(({ items, pageScore }) =>
           sendResponse({ type: "dp/classify-result", results: items, pageScore }),
         )

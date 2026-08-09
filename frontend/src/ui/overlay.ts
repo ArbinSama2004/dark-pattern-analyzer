@@ -36,7 +36,21 @@ interface MountedOverlay {
   destroy(): void;
 }
 
-export function mountOverlay(): MountedOverlay {
+/**
+ * `resolveElement` lets the caller supply a live element for an item (e.g.
+ * from an id -> Element registry built during the same extraction pass)
+ * instead of relying purely on `item.selector` here. This matters on
+ * heavily re-rendering SPAs: `stableSelector()` is a positional CSS path
+ * computed once at extraction time, and by the time a classify response
+ * comes back (can be several seconds later under slow fp32 CPU inference),
+ * a framework re-render can have changed sibling order/count enough that
+ * the selector no longer resolves to the right node -- or to anything.
+ * `querySelector(item.selector)` is kept as the fallback for callers that
+ * don't track live elements (e.g. results rehydrated from storage).
+ */
+export function mountOverlay(
+  resolveElement?: (item: ClassifyItemResult) => Element | null,
+): MountedOverlay {
   const existing = document.getElementById(HOST_ID);
   existing?.remove();
 
@@ -61,18 +75,54 @@ export function mountOverlay(): MountedOverlay {
 
   function render() {
     container.innerHTML = "";
+    // Debug trail: window.__dpRenderDebug after any update() shows exactly
+    // why each item did or didn't get a badge -- no element found, not
+    // attached to the document, zero-size, or simply off-screen right now.
+    // Kept as a plain array assigned each render, not appended, so it never
+    // grows unbounded.
+    const debug: Array<{
+      id: string;
+      text: string;
+      status: "no-element" | "disconnected" | "zero-size" | "off-screen" | "rendered";
+      rect?: { top: number; left: number; width: number; height: number };
+    }> = [];
+
     for (const item of current) {
-      const el = document.querySelector(item.selector);
-      if (!el) continue;
+      const el = resolveElement?.(item) ?? document.querySelector(item.selector);
+      if (!el) {
+        debug.push({ id: item.id, text: item.text, status: "no-element" });
+        continue;
+      }
+      if (!el.isConnected) {
+        debug.push({ id: item.id, text: item.text, status: "disconnected" });
+        continue;
+      }
       const rect = el.getBoundingClientRect();
-      if (rect.width === 0 && rect.height === 0) continue;
+      if (rect.width === 0 && rect.height === 0) {
+        debug.push({ id: item.id, text: item.text, status: "zero-size" });
+        continue;
+      }
       // Skip elements currently scrolled out of the viewport entirely --
       // a badge positioned off-screen is not just wasted, it can also throw
       // off layout when it re-enters, and there's nothing to click on yet.
-      if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
+      if (rect.bottom < 0 || rect.top > window.innerHeight) {
+        debug.push({
+          id: item.id,
+          text: item.text,
+          status: "off-screen",
+          rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+        });
+        continue;
+      }
 
       const finding = topFinding(item);
       if (!finding) continue;
+      debug.push({
+        id: item.id,
+        text: item.text,
+        status: "rendered",
+        rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
+      });
 
       const badge = document.createElement("div");
       badge.className = `badge ${finding.confidence}`;
@@ -105,6 +155,8 @@ export function mountOverlay(): MountedOverlay {
       });
       container.appendChild(badge);
     }
+
+    (window as unknown as Record<string, unknown>).__dpRenderDebug = debug;
   }
 
   function highlight(el: Element) {
@@ -131,6 +183,7 @@ export function mountOverlay(): MountedOverlay {
   return {
     update(items: ClassifyItemResult[]) {
       current = items;
+      console.log(`[dark-pattern-analyzer] overlay.update: ${items.length} item(s)`);
       render();
     },
     destroy() {

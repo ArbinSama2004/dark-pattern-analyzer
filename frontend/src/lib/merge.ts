@@ -20,6 +20,8 @@ const RULE_DESCRIPTIONS: Record<string, string> = {
   late_fee: "A new charge appears only once you reach the payment step.",
   cancel_offsite:
     "Cancelling routes you off the page (phone/email/another site) instead of handling it here.",
+  discount_badge:
+    "A discount percentage badge may be inflated or artificial, creating a false sense of savings.",
 };
 
 function describeRule(rule: string, label: Label): string {

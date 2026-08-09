@@ -7,9 +7,11 @@ import { hiddenOptout } from "./hidden_optout";
 import { ctaAsymmetry } from "./cta_asymmetry";
 import { lateFee } from "./late_fee";
 import { cancelOffsite } from "./cancel_offsite";
+import { discountBadge } from "./discount_badge";
 import type { Rule, RuleHit } from "./types";
 
-/** All eight rules from docs/ARCHITECTURE.md 4.5. */
+/** All rules from docs/ARCHITECTURE.md 4.5, plus discount_badge for
+ * e-commerce discount-badge pattern coverage. */
 const RULES: Rule[] = [
   stockCounter,
   countdownTimer,
@@ -19,6 +21,7 @@ const RULES: Rule[] = [
   ctaAsymmetry,
   lateFee,
   cancelOffsite,
+  discountBadge,
 ];
 
 export function runRules(candidate: Candidate, el: Element): RuleHit[] {

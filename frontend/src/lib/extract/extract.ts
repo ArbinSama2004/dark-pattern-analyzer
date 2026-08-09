@@ -9,6 +9,63 @@ import {
   type Candidate,
 } from "./types";
 
+/** Inline HTML elements whose text can be merged with siblings into one
+ * logical unit. Kept here rather than imported from a constant file so
+ * the leaf-block heuristic is self-contained. */
+const INLINE_TAGS = new Set([
+  "a", "abbr", "acronym", "b", "bdo", "big", "br", "button",
+  "cite", "code", "dfn", "em", "i", "img", "input", "kbd",
+  "label", "map", "object", "output", "q", "s", "samp", "select",
+  "small", "span", "strong", "sub", "sup", "textarea", "time",
+  "tt", "u", "var",
+]);
+
+/**
+ * When a block element has no direct text but all its children are inline
+ * elements (span, strong, s, del, etc.), e-commerce pages often compose a
+ * single logical string split across those inlines -- e.g.:
+ *
+ *   <div class="pdp-discount"><span>-8%</span></div>
+ *   <div class="price"><s>NPR 1,299</s><span>NPR 1,199</span></div>
+ *
+ * In those cases, join the children's text into one string and use that
+ * as the candidate text instead of skipping the parent (which previously
+ * happened because directText was empty).
+ *
+ * Returns null if the element has non-inline child elements or if the
+ * joined text is outside [MIN_TEXT_LENGTH, MAX_TEXT_LENGTH].
+ */
+function leafBlockText(el: Element): string | null {
+  const children = Array.from(el.childNodes);
+  // Must have at least one child to be worth coalescing.
+  if (children.length === 0) return null;
+
+  // All children must be text nodes or inline elements. A block-level
+  // child (div, p, section…) means this is a structural container, not a
+  // leaf -- let the walker descend into it naturally instead.
+  for (const child of children) {
+    if (child.nodeType === Node.TEXT_NODE) continue;
+    if (child.nodeType === Node.ELEMENT_NODE) {
+      const tag = (child as Element).tagName.toLowerCase();
+      if (INLINE_TAGS.has(tag)) continue;
+    }
+    return null; // non-inline child element → not a leaf block
+  }
+
+  const joined = children
+    .map((n) => (n.textContent ?? "").trim())
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (joined.length < MIN_TEXT_LENGTH || joined.length > MAX_TEXT_LENGTH) {
+    return null;
+  }
+  return joined;
+}
+
+
 function isVisible(el: Element): boolean {
   if (!(el instanceof HTMLElement)) return true;
 
@@ -179,16 +236,28 @@ export async function extractCandidatesWithElements(
         .replace(/\s+/g, " ")
         .trim();
 
+      // Leaf-block fallback: if the element has no direct text but all its
+      // children are inline tags (span, strong, s, del, …), treat the joined
+      // children as one logical string. This is how discount badges and
+      // crossed-out price elements are typically written on e-commerce pages:
+      //   <div class="pdp-discount"><span>-8%</span></div>
+      //   <div class="price"><s>NPR 1,299</s> <span>NPR 1,199</span></div>
+      // Without this they were silently skipped because directText === "".
+      const candidateText =
+        directText.length >= MIN_TEXT_LENGTH && directText.length <= MAX_TEXT_LENGTH
+          ? directText
+          : (leafBlockText(el) ?? "");
+
       if (
-        directText.length < MIN_TEXT_LENGTH ||
-        directText.length > MAX_TEXT_LENGTH ||
-        /^\d+$/.test(directText)
+        candidateText.length < MIN_TEXT_LENGTH ||
+        candidateText.length > MAX_TEXT_LENGTH ||
+        /^\d+$/.test(candidateText)
       ) {
         continue;
       }
       if (!isVisible(el)) continue;
 
-      const id = await snippetId(lang, directText);
+      const id = await snippetId(lang, candidateText);
       if (seen.has(id)) continue;
       seen.add(id);
 
@@ -199,7 +268,7 @@ export async function extractCandidatesWithElements(
       out.push({
         candidate: {
           id,
-          text: directText,
+          text: candidateText,
           tag: el.tagName.toLowerCase(),
           role,
           lang,

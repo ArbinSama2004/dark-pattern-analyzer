@@ -11,16 +11,18 @@ export default defineConfig({
     // chrome.scripting; the content script is declared statically via
     // WXT's entrypoints convention instead. Dropped to keep the install
     // prompt minimal.
-    permissions: ["storage", "sidePanel", "activeTab"],
-    // Host permissions are intentionally NOT wildcarded to all URLs -- this
-    // previously said that in a comment while the array right below it
-    // still had "https://*/*", which defeats the point. Scanning is
-    // user-initiated on the active tab (see docs/ARCHITECTURE.md Non-goals:
-    // "No automated crawling of sites at scale"), and the classify backend
-    // only runs on localhost in dev, so localhost is genuinely all that's
-    // needed here. Widen this deliberately (with a comment explaining why)
-    // if/when the backend is deployed somewhere else.
-    host_permissions: ["http://localhost/*"],
+    permissions: ["storage", "sidePanel", "activeTab", "tabs"],
+    // Host permissions must cover every origin where the extension runs,
+    // not just localhost. chrome.tabs.sendMessage (MV3 service worker →
+    // content script) is silently dropped by Chrome if the destination
+    // tab's origin isn't listed here -- this was why __dpRenderDebug was
+    // always undefined on daraz.com.np even though the code path was
+    // correct. "http://localhost/*" was sufficient while the backend-only
+    // smoke tests ran, but the extension needs to deliver messages to real
+    // e-commerce pages, so we need the broad match here.
+    // See: https://developer.chrome.com/docs/extensions/develop/concepts/
+    //      match-patterns#special
+    host_permissions: ["http://localhost/*", "*://*/*"],
     action: {
       default_title: "Dark Pattern Analyzer",
     },

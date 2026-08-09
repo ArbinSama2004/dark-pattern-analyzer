@@ -37,7 +37,9 @@ const SUPPORT_KEYWORDS: Record<string, string[]> = {
 const FINE_PRINT_CLASS_RE =
   /fine-?print|disclaimer|legal|terms?[-_]?(and|&)?[-_]?conditions/i;
 const BADGE_CLASS_RE = /\bbadge\b/i;
-const PROMO_CLASS_RE = /promo|discount|deal|offer/i;
+// Extended to cover Daraz/e-commerce opaque class names that contain the
+// product discount suffix but don't spell out "promo" or "deal".
+const PROMO_CLASS_RE = /promo|discount|deal|offer|pdp-discount|price-discount|deal-badge/i;
 const TOAST_CLASS_RE = /toast|snackbar/i;
 const MODAL_CLASS_RE = /modal|dialog|popup|overlay/i;
 const HELP_CLASS_RE = /help|hint|tooltip/i;
@@ -45,6 +47,10 @@ const LINE_ITEM_CLASS_RE = /line-?item|cart-?item|price-?row|order-?item/i;
 const STOCK_CLASS_RE = /stock|inventory/i;
 const TIMER_CLASS_RE = /timer|countdown/i;
 const BANNER_CLASS_RE = /banner|announcement/i;
+
+/** Matches text that is unmistakably a discount badge regardless of class
+ * name, e.g. "-8%", "15% off", "Save NPR 300", "₹200 off". */
+const DISCOUNT_TEXT_RE = /^-\d+%$|^\d+%\s*off\b|\bsave\s+[\d,]+|\bsave\s+\d+%/i;
 
 function normalizedText(el: Element): string {
   return (el.textContent ?? "").trim().toLowerCase();
@@ -128,6 +134,9 @@ export function inferRole(el: Element, lang: string): Role {
     if (TOAST_CLASS_RE.test(attrs)) return "toast";
     if (HELP_CLASS_RE.test(attrs)) return "help_text";
     if (BADGE_CLASS_RE.test(attrs)) return "badge";
+    // Text-first: a discount percentage or "save N" phrase is unambiguously
+    // promotional regardless of what CSS class the site happened to use.
+    if (DISCOUNT_TEXT_RE.test(text)) return "promo";
     if (PROMO_CLASS_RE.test(attrs)) return "promo";
     if (BANNER_CLASS_RE.test(attrs)) return "banner";
 
