@@ -1,11 +1,15 @@
 # `frontend/` -- Stage 3
 
-**Not yet implemented.** Delivered in Stage 3; see `docs/STAGES.md`.
+**Implemented.** Source is complete and wired end-to-end (popup, side panel,
+content script, background, rules, messaging). See `docs/STAGES.md` for exit
+criteria. **Not yet verified**: a real Chrome load-unpacked + live-page test
+against a running backend. A `wxt` dev build has been produced
+(`.output/chrome-mv3/`, not committed) but not a production `wxt build`.
 
 Chrome extension (Manifest V3) built with WXT + React + TypeScript + Tailwind +
 shadcn/ui.
 
-## Planned layout
+## Layout
 
 ```
 frontend/
@@ -60,4 +64,7 @@ decided in the page.
 
 ## Prerequisite
 
-Stage 2 complete, with `POST /v1/classify` responding inside the latency budget.
+`backend/` is code-complete but its inference path is unverified against the
+real model bundle (see `HANDOFF_VERIFIED.md` at repo root). Run the backend
+locally with the real `model.onnx` and confirm `POST /v1/classify` responds
+before relying on this extension end-to-end.

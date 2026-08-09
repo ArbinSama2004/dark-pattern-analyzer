@@ -86,7 +86,8 @@ debugging the API.
 
 ## Stage 2 — Backend
 
-> **Status:** not started
+> **Status:** code complete; inference unverified against the real model bundle
+> (see `HANDOFF_VERIFIED.md`)
 
 **Goal:** a FastAPI service that loads the Stage 1 artifacts and classifies batches of
 snippets inside the latency budget.
@@ -126,7 +127,9 @@ snippets inside the latency budget.
 
 ## Stage 3 — Frontend
 
-> **Status:** not started
+> **Status:** code complete and wired end-to-end (popup, side panel, content
+> script, background, messaging); not yet verified with a real Chrome
+> load-unpacked test against a live backend (see `HANDOFF_VERIFIED.md`)
 
 **Goal:** a Chrome extension that extracts real DOM content, applies structural rules
 locally, calls the backend, and presents findings legibly.

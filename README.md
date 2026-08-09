@@ -69,9 +69,12 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 | Stage | Scope | Status |
 |---|---|---|
 | **1** | Repo structure, dataset, Colab fine-tuning, ONNX artifacts | **delivered** |
-| **2** | FastAPI inference service | not started |
-| **3** | Chrome extension: extraction, rules, UI | not started |
+| **2** | FastAPI inference service | **code complete, unverified against real model** |
+| **3** | Chrome extension: extraction, rules, UI | **code complete, unverified end-to-end in browser** |
 | **4** | Real-site gold set, evaluation, write-up | not started |
+
+See `HANDOFF_VERIFIED.md` at repo root for the code-verified status and the
+exact next steps -- this table is a summary, that file is the source of truth.
 
 Detail, deliverables and exit criteria per stage: [`docs/STAGES.md`](docs/STAGES.md)
 
