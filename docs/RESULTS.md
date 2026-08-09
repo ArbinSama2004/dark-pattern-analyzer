@@ -4,12 +4,12 @@ All numbers here were measured. Empty cells are genuinely not yet measured rathe
 estimated.
 
 **Provenance note.** Sections 1-4 record a complete Stage 1 run on dataset v2.1 (MuRIL,
-seed 13). The artifact bundle from that run was lost when the Colab session expired, so
-the run must be repeated to produce a shippable model.onnx. The metrics below remain
-valid measurements and are the reference the re-run is checked against: the same seed
-and data should reproduce them within about 0.01 (GPU kernel non-determinism). A larger
-gap means something in the environment changed and should be investigated before
-proceeding.
+seed 13). The artifact bundle from that run was initially believed lost when the Colab
+session expired, but it was in fact present on local disk at
+`ml/artifacts/model_v1/model.onnx` (951,654,037 bytes, fp32) -- it only failed to
+appear in handoff zips because `git archive` omits gitignored files by design. Parity
+(100.00% / 0.00000) and the smoke check (`scarcity=0.626`) confirm this is the same
+bundle these metrics were measured from. No re-run was needed.
 
 Three dataset versions exist and the differences matter, so results are labelled by
 version throughout:
@@ -173,11 +173,12 @@ deferred rather than forgotten.
 
 | Language | macro-F1 (dark) | vs baseline |
 |---|---|---|
-| en | | +0.062 |
-| hi | | |
-| ne | | |
+| en | 0.8891 | +0.062 |
+| hi | 0.9054 | |
+| ne | 0.9091 | |
 
-**Spread: 0.0200** (v2 baseline was 0.074). Fill the absolute values from the re-run.
+**Spread: 0.0200** (v2 baseline was 0.074). Values confirmed from
+`ml/artifacts/model_v1/metrics.json`, the same bundle that passed parity.
 
 ### Dataset v2 transformer, for comparison
 

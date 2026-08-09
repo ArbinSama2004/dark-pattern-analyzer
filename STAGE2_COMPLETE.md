@@ -129,15 +129,31 @@ int8. Do not restate under 100 ms as verified.
 
 ---
 
-## 5. Still open from Stage 1, unchanged
+## 5. Stage 1 status update -- the bundle is never actually lost
 
-1. Push the repo (HANDOFF Step A).
-2. Re-run Colab on a fresh Google account: about 40 minutes on a T4, sections 1-9
-   one cell at a time, never Run All, never restart mid-run, and
-   **`MODEL_KEY='muril'`** -- notebook cell 10 still defaults to `'mdistilbert'`.
-3. Place the bundle at `ml/artifacts/model_v1/` (Step C).
-4. Fill `docs/RESULTS.md` section 3 per-language cells: en 0.8891, hi 0.9054,
-   ne 0.9091.
+The earlier assumption (Colab session hit its GPU limit, bundle gone) was wrong.
+`model.onnx` was on local disk the whole time at `ml/artifacts/model_v1/`
+(951,654,037 bytes, fp32) -- it only looked missing because handoff zips were built
+with `git archive`, which omits gitignored files by design. Parity (100.00% /
+0.00000) and the smoke check (`scarcity=0.626`) both pass against this file.
+`docs/RESULTS.md` section 3 is filled: en 0.8891, hi 0.9054, ne 0.9091.
+
+**No re-run needed. Do not re-run the notebook.**
+
+### Now actually open -- Stage 2 needs real verification
+
+Everything in Section 3 above was checked with a stdlib harness because this sandbox
+had no network and couldn't install `fastapi`/`onnxruntime`/`tokenizers`/`pytest`.
+None of it has run against the real 951 MB bundle yet:
+
+1. `make install-backend` (`cd backend && uv sync`)
+2. `make test-backend` -- expect `test_api.py` and the real-bundle parts of
+   `test_bundle.py` to actually execute this time
+3. `make smoke-backend` -- must print `scarcity=0.626`
+4. `make dev` + `curl -s localhost:8000/readyz` -- expect `status: ready`
+5. Measure fp32 latency for real: 1 snippet, batch 8, batch 32, batch 64. Fill
+   `docs/RESULTS.md` section 5 and correct `HANDOFF.md`'s latency budget, which was
+   written assuming int8. Do not restate "under 100 ms" as verified until measured.
 
 Non-blocking: remove the colliding hard-negative template index 00 in all three
 languages from `data/generator/hardneg_templates_a.py`, and append a v2.1 section to

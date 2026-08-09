@@ -5,9 +5,12 @@ fresh conversation. It contains everything needed to continue without re-reading
 chat history: what the project is, what has been measured, what is broken, what is
 next, and every trap already paid for.
 
-**Status: Stage 1 is code-complete and fully documented. The trained artifact bundle
-was lost when the Colab session hit its GPU limit, so section 5 must be re-run once on
-a fresh Google account. No code changes are required to do that.**
+**Status: Stage 1 is complete. The trained artifact bundle (`model.onnx`, 951,654,037
+bytes, fp32) exists locally at `ml/artifacts/model_v1/` and passed parity
+(100.00% / 0.00000) and the smoke check (`scarcity=0.626`). It is gitignored by
+design, so it never appears in `git archive` output or repo zips -- that absence
+previously looked like data loss but was not. Next step is Stage 2 backend
+verification (Section 4, Step C onward), not a re-run.**
 
 ---
 
@@ -44,7 +47,8 @@ training uses BCEWithLogitsLoss with sigmoid outputs and **per-class thresholds*
 | 3 | Frontend | Chrome extension working on live pages |
 | 4 | Evaluation and release | real-site gold set, honest metrics, demo, presentable repo |
 
-**Currently: end of Stage 1, blocked only on re-running the notebook.**
+**Currently: Stage 1 closed (bundle verified, not lost). Stage 2 code is written but
+not yet run against the real bundle -- that verification is next.**
 
 ---
 
@@ -164,7 +168,22 @@ Fills docs/RESULTS.md with every measured number and adds docs/PROGRESS.md."
 git push
 ```
 
-### Step B -- new Google account (about 40 minutes, mostly waiting)
+### Step B -- RESOLVED, kept for history only
+
+The bundle was not actually lost. `git archive` (used to produce handoff zips) omits
+`model.onnx` because it is gitignored on purpose (see Step C) -- that made the bundle
+*look* absent in a fresh zip even though it was sitting locally at
+`ml/artifacts/model_v1/model.onnx`, already parity-checked. **Do not re-run the
+notebook.** If you ever need to hand off a full working snapshot including the
+artifact, use `zip -r` / `tar`, not `git archive`, or attach the bundle separately.
+
+The steps below are kept only as a reference for what a genuine re-run would involve,
+should the bundle ever actually need regenerating (e.g. a future model version).
+
+<details>
+<summary>Original re-run instructions (not currently applicable)</summary>
+
+### Step B (original) -- new Google account (about 40 minutes, mostly waiting)
 
 Nothing needs migrating. Code and data live in GitHub; the old checkpoints and the
 stale artifact backup in the old Drive are both disposable.
@@ -189,22 +208,37 @@ stale artifact backup in the old Drive are both disposable.
 7. Before the download finishes, delete /content/dp_checkpoints if Drive is tight.
 
 **Do not re-run anything after section 9, and do not restart the runtime mid-run: the
-trained weights live in /content and disappear with the session. That is exactly how
-the previous bundle was lost.**
+trained weights live in /content and disappear with the session.**
 
-### Step C -- place the bundle and start Stage 2
+</details>
 
-```bash
-cd ~/Desktop/dark-pattern-analyzer
-unzip -o ~/Downloads/model_v1.zip -d ml/artifacts/
-ls -la ml/artifacts/model_v1
+### Step C -- DONE. Bundle is placed and verified
+
+```
+ml/artifacts/model_v1/model.onnx   951,654,037 bytes, fp32
 ```
 
-Expect: model.onnx (~950 MB), tokenizer/, label_map.json, thresholds.json,
-manifest.json, metrics.json, card.md. The bundle is gitignored -- **never commit it.**
+Confirmed: file size matches the ~950 MB fp32 expectation (not the 0.1 MB pointer-file
+trap from Section 3), parity passed at 100.00% / 0.00000, and the smoke check printed
+`scarcity=0.626`. Reminder: the bundle is gitignored -- **never commit it**; hand it off
+as a separate file/release, not via `git archive`.
 
-Then fill in the per-language cells left blank in docs/RESULTS.md section 3 from
-metrics.json, and Stage 1 is closed.
+`docs/RESULTS.md` section 3 per-language cells are filled from `metrics.json`
+(en 0.8891, hi 0.9054, ne 0.9091). Stage 1 is closed.
+
+**Next: Stage 2 backend verification, not yet done for real.**
+
+```bash
+make install-backend            # cd backend && uv sync
+make test-backend                # cd backend && uv run pytest -q
+make smoke-backend               # must print scarcity=0.626
+make dev                         # uvicorn on :8000
+curl -s localhost:8000/readyz | python -m json.tool
+```
+
+Then measure fp32 latency for real (single snippet, batch 8/32/64) and fill in
+`docs/RESULTS.md` section 5. It is still blank -- do not restate "under 100 ms" as
+verified until it is measured.
 
 ---
 
@@ -287,8 +321,8 @@ harmless.
    seed for the Stage 4 gold set**, which is the most valuable missing piece.
 2. Gold set annotation: solo, or a second annotator for a Cohen's kappa figure? A kappa
    number materially strengthens the report.
-3. docs/RESULTS.md section 3 per-language cells and section 5 latency are still blank
-   pending the re-run and Stage 2.
+3. docs/RESULTS.md section 3 per-language cells are now filled (bundle was found, not
+   lost). Section 5 latency is still blank, pending real Stage 2 backend verification.
 
 ### Small pending cleanups, none blocking
 
