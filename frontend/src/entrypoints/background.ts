@@ -183,6 +183,7 @@ async function handleClassifyCandidates(
       accumulated.set(candidate.id, {
         id: candidate.id,
         text: candidate.text,
+        tag: candidate.tag,
         role: candidate.role,
         selector: candidate.selector,
         findings,

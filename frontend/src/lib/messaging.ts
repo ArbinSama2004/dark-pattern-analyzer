@@ -19,6 +19,11 @@ export interface ClassifyCandidatesMessage {
 export interface ClassifyItemResult {
   id: string;
   text: string;
+  /** The candidate's HTML tag, lowercased -- e.g. "button", "span". Added for
+   * Fix 2: resolve.ts's DOM resolver needs it to verify a re-resolved
+   * element is structurally the right kind of node, not just one with
+   * matching text. */
+  tag: string;
   role: string;
   selector: string;
   findings: MergedFinding[];

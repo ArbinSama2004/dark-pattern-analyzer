@@ -16,6 +16,7 @@ import type {
 } from "../lib/messaging";
 import { recordObservation, isAnimated } from "../lib/timer-tracker";
 import { mountOverlay, scrollAndHighlight } from "../ui/overlay";
+import { resolveOccurrence, type ResolveDiagnostic } from "../lib/resolve";
 
 const DEBOUNCE_MS = 300;
 
@@ -80,51 +81,24 @@ export default defineContentScript({
     const unresolvable = new Set<string>();
 
     /**
-     * Three-tier resolution, in decreasing order of confidence:
+     * Prediction -> DOM resolution, delegated to lib/resolve.ts (Fix 2). See
+     * that module's doc comment for the three-tier strategy and why it
+     * refuses to guess on ambiguous or already-claimed matches.
      *
-     *   1. the live registry, if its node is still attached;
-     *   2. the positional CSS path captured at extraction time;
-     *   3. a text scan of the current document.
-     *
-     * Tier 1 alone was the bug behind disappearing badges on SPAs like Jeevee:
-     * when the framework re-renders a subtree it replaces the nodes, so the
-     * registry entry becomes a detached element. overlay.ts checks
-     * `isConnected` and skips it -- but the `?? document.querySelector(...)`
-     * fallback there never fired, because a *detached* element is still
-     * non-null. The badge silently vanished with no fallback attempted.
-     * Deleting the dead entry here is what re-arms tiers 2 and 3.
+     * `unresolvable` is a same-pass negative cache: overlay.ts's render() can
+     * run many times per extraction pass (once per scroll/resize/mutation),
+     * and resolve.ts's tier-3 structural scan is the expensive one -- without
+     * this, every still-unresolved item would re-pay for that scan on every
+     * render, not just once per extraction pass.
      */
     function resolveForItem(item: ClassifyItemResult): Element | null {
-      const cached = elementRegistry.get(item.id);
-      if (cached?.isConnected) return cached;
-      if (cached) elementRegistry.delete(item.id);
       if (unresolvable.has(item.id)) return null;
 
-      const bySelector = querySelectorSafe(item.selector);
-      if (bySelector && textMatches(bySelector, item.text)) {
-        elementRegistry.set(item.id, bySelector);
-        return bySelector;
-      }
-
-      // A re-render usually keeps the *text* even when it changes the DOM
-      // path, so matching on the candidate's own text is the most durable
-      // handle we have. Costly, hence the negative cache above.
-      const byText = findElementByText(item.text);
-      if (byText) {
-        elementRegistry.set(item.id, byText);
-        return byText;
-      }
-
-      // Last resort: the selector resolved to *something* whose text has
-      // since changed (a countdown timer's own node, typically). Better to
-      // badge that than to drop the finding entirely.
-      if (bySelector) {
-        elementRegistry.set(item.id, bySelector);
-        return bySelector;
-      }
-
-      unresolvable.add(item.id);
-      return null;
+      const resolved = resolveOccurrence(item, elementRegistry, {
+        onDiagnostic: recordResolveDiagnostic,
+      });
+      if (!resolved) unresolvable.add(item.id);
+      return resolved;
     }
 
     const overlay = mountOverlay(resolveForItem);
@@ -349,70 +323,30 @@ export default defineContentScript({
   },
 });
 
-function normalizeText(value: string | null | undefined): string {
-  return (value ?? "").replace(/\s+/g, " ").trim();
-}
-
-/** `document.querySelector` never throws on a *stale* selector, but a path
- * built around an id that contained exotic characters can still be rejected
- * as a syntax error. A throw here would abort the whole render loop. */
-function querySelectorSafe(selector: string): Element | null {
-  if (!selector) return null;
-  try {
-    return document.querySelector(selector);
-  } catch {
-    return null;
-  }
-}
-
-function textMatches(el: Element, text: string): boolean {
-  const target = normalizeText(text);
-  if (!target) return false;
-  const actual = normalizeText(el.textContent);
-  // Extraction may have used only the element's *direct* text, or joined its
-  // inline children (extract.ts's leafBlockText), so containment in either
-  // direction is the honest comparison -- exact equality would reject
-  // legitimate matches.
-  return actual === target || actual.includes(target);
-}
-
-/** Elements scanned before giving up on a text lookup. A cap matters: on a
- * large listing page an unbounded scan runs per unresolved finding. */
-const TEXT_SCAN_LIMIT = 4000;
-
 /**
- * Finds the *deepest* element whose text matches, so we badge the price tag
- * rather than the product card that contains it. Returns null rather than
- * guessing when nothing matches.
+ * Rolling log of failed/downgraded resolutions, for the same reason
+ * window.__dpRenderDebug and window.__dpLastPairs exist: a dev-only way to
+ * see *why* a finding has no badge without attaching a debugger. Reassigned
+ * (not appended) each time, capped, so it never grows unbounded across a
+ * long-lived tab. Anything other than "not-found" (a same-tag/same-text
+ * element existed but the resolver refused to guess, or a claim collision
+ * was avoided) is worth a console line too -- these are exactly the cases
+ * Fix 2 exists to make visible instead of silently wrong.
  */
-function findElementByText(text: string): Element | null {
-  const target = normalizeText(text);
-  if (target.length < 3) return null;
+const RESOLVE_DEBUG_LIMIT = 200;
+const resolveDebugLog: ResolveDiagnostic[] = [];
 
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
-  let best: Element | null = null;
-  let bestDepth = -1;
-  let scanned = 0;
-
-  let node = walker.nextNode() as Element | null;
-  while (node && scanned < TEXT_SCAN_LIMIT) {
-    scanned += 1;
-    const el = node;
-    node = walker.nextNode() as Element | null;
-
-    if (el.id === "dark-pattern-analyzer-overlay-host") continue;
-    const actual = normalizeText(el.textContent);
-    // Cheap reject first: containment is far cheaper than the depth walk.
-    if (!actual.includes(target)) continue;
-
-    let depth = 0;
-    for (let p = el.parentElement; p; p = p.parentElement) depth += 1;
-    if (depth > bestDepth) {
-      best = el;
-      bestDepth = depth;
-    }
+function recordResolveDiagnostic(diagnostic: ResolveDiagnostic): void {
+  if (diagnostic.outcome === "ambiguous" || diagnostic.outcome === "claimed") {
+    console.warn(
+      `[dark-pattern-analyzer] resolve: ${diagnostic.outcome} for "${diagnostic.text}" ` +
+        `(id=${diagnostic.id}${diagnostic.matchCount ? `, ${diagnostic.matchCount} candidates` : ""}) ` +
+        `-- refusing to guess, badge withheld this pass.`,
+    );
   }
-  return best;
+  resolveDebugLog.push(diagnostic);
+  if (resolveDebugLog.length > RESOLVE_DEBUG_LIMIT) resolveDebugLog.shift();
+  (window as unknown as Record<string, unknown>).__dpResolveDebug = resolveDebugLog;
 }
 
 /** Lightweight local mirror of selector.ts's stableSelector, used only by
