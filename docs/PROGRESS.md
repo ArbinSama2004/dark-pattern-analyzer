@@ -93,6 +93,87 @@ touches Drive.
 
 ---
 
+## Stage 2 -- Inference service
+
+### 1. What was built
+
+A FastAPI service over onnxruntime with three endpoints: `POST /v1/classify`,
+`GET /healthz` and `GET /readyz`. The artifact bundle is the only thing shared with
+`ml/`; the backend never imports that package.
+
+`GET /v1/rules` and `POST /v1/feedback` were deliberately **not** stubbed. They are
+late Stage 3 and Stage 4 respectively, and a 501 stub is maintenance with no user.
+
+### 2. The invariants stopped being documentation and became code
+
+Each of the first four invariants now has an enforcement point that aborts startup
+rather than degrading. `/readyz` returns 503 with the reason; `/v1/classify`
+returns 503 while the engine is absent.
+
+| Invariant | Enforced in |
+|---|---|
+| Label order frozen | `core/taxonomy.verify_label_order`, called from `load_bundle` |
+| `build_model_input` identical to `ml/` | `core/model_input.py` + `tests/test_model_input.py` |
+| Thresholds only from `thresholds.json` | `core/bundle._load_thresholds` |
+| Model version in every cache key | `core/hashing.cache_key`, cross-checked against the manifest |
+
+**Why abort instead of degrade.** A service with a permuted label axis or a stale
+model version returns 200s and well-formed JSON while every prediction is wrong,
+and nothing raises. That is the same failure shape as the int8 collapse, so it gets
+the same answer: fail loudly and early.
+
+The bundle loader also rejects a `model.onnx` under 50 MB, which is the 0.1 MB
+dynamo pointer-file trap.
+
+### 3. The Stage 1 smoke value is now a startup gate
+
+The exporter's reference input reproduces `scarcity 0.626`. Startup asserts that
+within 0.05 and refuses readiness otherwise. This does not replace `make parity` --
+the smoke test cannot detect a destroyed model on its own -- but the reference value
+turns "the API started cleanly and called everything benign" into a 503.
+
+### 4. Architecture split so the decision logic is testable without the graph
+
+`model.onnx` is gitignored, so CI will never have it. `services/postprocess.py`
+imports only numpy and `core/*` plus `services/cache.py` are stdlib-only.
+Everything touching `onnxruntime` or `tokenizers` lives behind
+`InferenceEngine.__init__`. The threshold, multi-label and benign rules are
+therefore unit-tested on every run.
+
+### 5. Two hashes, not one
+
+`snippet_id` is `sha1(lang + NUL + text)` and ignores tag and role by design, so a
+sentence keeps one id wherever it appears. The cache key cannot work that way: tag
+and role change the prediction, which is the entire reason `model_input` carries
+them. Keying the cache on `snippet_id` would serve a paragraph's prediction for the
+same words on a cancel button. A test asserts the two stay distinct.
+
+### 6. Latency is not claimed
+
+The under-100 ms budget in HANDOFF.md was written while int8 was still assumed.
+fp32 MuRIL on CPU will exceed it. The handler logs requests over budget rather
+than pretending; the number gets measured on real hardware and then the budget gets
+corrected. Mitigations already in place: cache hits, in-request dedup of repeated
+page copy, and padding to the longest row in a batch rather than to `max_length=64`
+(p95 token length is 34). If that is not enough, the fix is Stage 4 vocabulary
+pruning. Quantization stays closed.
+
+### 7. What was verified, and what was not
+
+30 checks pass without the model: `build_model_input` byte-identical to
+`ml/src/ml/config.py` across seven cases including Devanagari and embedded bracket
+syntax; the real bundle's committed evidence files loading and yielding exactly the
+tuned threshold vector; fifteen distinct rejection paths; stable sigmoid,
+per-class thresholds, multi-label ordering and benign handling; cache TTL, LRU and
+thread safety; request validation and tag/role normalisation.
+
+**Unverified until the bundle exists:** real inference, the smoke check reproducing
+0.626, actual latency, and the HTTP tests, which need `fastapi` and `httpx`.
+
+Rationale in plain language: docs/BACKEND.md.
+
+---
+
 ## Decisions that will not be revisited
 
 | Decision | Reason |

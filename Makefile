@@ -98,14 +98,27 @@ ext: ## [Stage 3] Run the extension in dev mode
 .PHONY: lint
 lint: ## Lint and type-check everything implemented
 	cd ml && uv run ruff check src && uv run ruff format --check src
+	cd backend && uv run ruff check src tests && uv run ruff format --check src tests
 
 .PHONY: fmt
 fmt: ## Auto-format
 	cd ml && uv run ruff format src && uv run ruff check --fix src
+	cd backend && uv run ruff format src tests && uv run ruff check --fix src tests
 
 .PHONY: test
 test: ## Run tests for everything implemented
 	cd ml && uv run pytest -q
+	$(MAKE) test-backend
+
+.PHONY: test-backend
+test-backend: ## [Stage 2] Run the backend test suite (skips what needs model.onnx)
+	@test -f backend/pyproject.toml || { echo "Stage 2 not delivered yet."; exit 1; }
+	cd backend && uv run pytest -q
+
+.PHONY: smoke-backend
+smoke-backend: ## [Stage 2] Load the real bundle and reproduce scarcity=0.626
+	@test -f $(ARTIFACTS)/model.onnx || { echo "No model.onnx in $(ARTIFACTS). Run 'make export' first."; exit 1; }
+	cd backend && uv run python scripts/smoke_check.py
 
 .PHONY: clean
 clean: ## Remove caches and build artifacts (keeps model artifacts)
