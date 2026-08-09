@@ -1,0 +1,39 @@
+{
+  "_generated_from": "backend/src/app/core/taxonomy.py",
+  "_warning": "Do not hand-edit. Run `npm run generate:taxonomy`.",
+  "expectedLabels": [
+    "confirmshaming",
+    "false_urgency",
+    "forced_action",
+    "obstruction",
+    "scarcity",
+    "sneaking",
+    "social_proof",
+    "benign"
+  ],
+  "darkLabels": [
+    "confirmshaming",
+    "false_urgency",
+    "forced_action",
+    "obstruction",
+    "scarcity",
+    "sneaking",
+    "social_proof"
+  ],
+  "benignLabel": "benign",
+  "descriptions": {
+    "confirmshaming": "Wording that shames or guilts you for declining.",
+    "false_urgency": "A deadline or countdown that may be fabricated or resetting.",
+    "forced_action": "Requires an unrelated action to proceed, such as signing up.",
+    "obstruction": "Makes an action harder than it needs to be, such as cancelling.",
+    "scarcity": "Claims limited stock or availability that may be unverifiable.",
+    "sneaking": "Slips in a charge, opt-in or condition you did not choose.",
+    "social_proof": "Unverifiable real-time activity used as peer pressure.",
+    "benign": "No manipulative pattern detected."
+  },
+  "langs": [
+    "en",
+    "hi",
+    "ne"
+  ]
+}

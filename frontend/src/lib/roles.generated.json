@@ -1,0 +1,26 @@
+{
+  "_generated_from": "data/synthetic/dataset_all.csv",
+  "_warning": "Do not hand-edit. Run `npm run generate:roles`.",
+  "roles": [
+    "badge",
+    "banner",
+    "body",
+    "checkbox",
+    "cta",
+    "decline",
+    "fine_print",
+    "form",
+    "form_gate",
+    "heading",
+    "help_text",
+    "label",
+    "line_item",
+    "modal_text",
+    "nav",
+    "promo",
+    "stock",
+    "support_link",
+    "timer",
+    "toast"
+  ]
+}

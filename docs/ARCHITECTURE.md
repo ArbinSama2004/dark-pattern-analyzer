@@ -157,7 +157,7 @@ candidates plus structural signals.
    |---|---|---|
    | `text` | `innerText`, trimmed, collapsed whitespace, capped at 200 chars | model |
    | `tag` | `tagName.toLowerCase()` | model + rules |
-   | `role` | inferred: `cancel`, `accept`, `optout`, `banner`, `label`, `body` | model + rules |
+   | `role` | inferred: one of the 20 roles the model was trained on (`decline`, `cta`, `checkbox`, `banner`, `label`, `body`, `fine_print`, `timer`, `stock`, `line_item`, `nav`, `form`, `form_gate`, `heading`, `help_text`, `modal_text`, `promo`, `support_link`, `toast`, `badge` -- see `data/synthetic/dataset_all.csv`'s `role` column, the actual source of truth) | model + rules |
    | `visible` | `offsetParent !== null` && computed `visibility`/`opacity`/`display` | rules |
    | `font_px` | `getComputedStyle().fontSize` | rules |
    | `contrast` | WCAG ratio of colour vs background | rules |
