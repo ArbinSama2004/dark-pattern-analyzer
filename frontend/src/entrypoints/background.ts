@@ -66,6 +66,17 @@ async function saveCache(cache: Record<string, SnippetResult>): Promise<void> {
   await chrome.storage.session.set({ [CACHE_STORAGE_KEY]: cache });
 }
 
+/** Findings already accumulated for a tab on the current page. Read back out
+ * of storage rather than kept in module scope because MV3 kills the worker
+ * between messages -- a module-level Map would silently reset and take every
+ * previously-found badge with it. Cleared on navigation by the
+ * tabs.onUpdated listener at the bottom of this file. */
+async function loadStoredItems(tabId: number): Promise<ClassifyItemResult[]> {
+  const key = findingsStorageKey(tabId);
+  const stored = await chrome.storage.session.get(key);
+  return (stored[key] as StoredFindings | undefined)?.items ?? [];
+}
+
 async function isScanEnabled(): Promise<boolean> {
   const stored = await chrome.storage.session.get(SCAN_ENABLED_KEY);
   // Default on -- absent means "never toggled", not "turned off".
@@ -87,6 +98,24 @@ async function handleClassifyCandidates(
   const capped = message.candidates.slice(0, MAX_SNIPPETS_PER_PAGE);
   const cache = await loadCache();
 
+  // Every finding known for this page so far, keyed by candidate id, seeded
+  // from storage and then updated with this message's candidates.
+  //
+  // This is the fix for the overlay flickering on live pages. A message from
+  // content.ts carries only the candidates that are *new since the last pass*
+  // -- on a page with a countdown timer that is a single candidate, once per
+  // tick. persistProgress() used to build its result set from `capped` alone,
+  // so each of those one-candidate passes broadcast a one-item (often
+  // zero-item) result set, and content.ts's overlay.update() replaces rather
+  // than merges. The visible effect was every badge on the page being torn
+  // down and rebuilt once or twice a second, and a page score that oscillated
+  // between the real total and the score of whatever single snippet had just
+  // been re-sent.
+  const accumulated = new Map<string, ClassifyItemResult>();
+  for (const item of await loadStoredItems(knownTabId)) {
+    accumulated.set(item.id, item);
+  }
+
   const uncached = capped.filter(({ candidate }) => !(candidate.id in cache));
   const batches = chunk(uncached, BATCH_SIZE);
 
@@ -104,17 +133,32 @@ async function handleClassifyCandidates(
   //     already written to storage are not lost -- only the content
   //     script's overlay update for this pass is.
   function persistProgress(): { items: ClassifyItemResult[]; pageScore: number } {
-    const items: ClassifyItemResult[] = capped.map(({ candidate, ruleHits }) => {
-      const modelResult = cache[candidate.id];
-      return {
+    for (const { candidate, ruleHits } of capped) {
+      const findings = mergeFindings(ruleHits, cache[candidate.id]);
+      if (findings.length === 0) {
+        // Benign after merging. Drop it rather than leaving a stale entry --
+        // a snippet can only move to benign if a batch has now resolved it.
+        accumulated.delete(candidate.id);
+        continue;
+      }
+      accumulated.set(candidate.id, {
         id: candidate.id,
         text: candidate.text,
         role: candidate.role,
         selector: candidate.selector,
-        findings: mergeFindings(ruleHits, modelResult),
-      };
-    });
-    const withFindings = items.filter((i) => i.findings.length > 0);
+        findings,
+      });
+    }
+
+    // Bound the accumulator the same way `capped` bounds one message. Map
+    // iterates in insertion order, so this evicts the oldest findings first.
+    while (accumulated.size > MAX_SNIPPETS_PER_PAGE) {
+      const oldest = accumulated.keys().next();
+      if (oldest.done) break;
+      accumulated.delete(oldest.value);
+    }
+
+    const withFindings = [...accumulated.values()];
     const pageScore = computePageScore(withFindings.map((i) => i.findings));
     const stored: StoredFindings = {
       pageScore,

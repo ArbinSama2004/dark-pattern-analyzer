@@ -19,6 +19,32 @@ import { mountOverlay, scrollAndHighlight } from "../ui/overlay";
 
 const DEBOUNCE_MS = 300;
 
+/** Hard floor between two full extraction passes. The 300ms debounce only
+ * limits how soon a pass runs after the *last* mutation -- on a page that
+ * mutates continuously (ad carousels, live counters, lazy-loading grids)
+ * mutations never stop arriving, so the debounce alone still lets extraction
+ * run several times a second forever. */
+const MIN_EXTRACTION_INTERVAL_MS = 1000;
+
+/**
+ * Dedupe key that survives a counter ticking.
+ *
+ * `candidate.id` is sha1(lang + text), so a countdown timer, a stock counter
+ * and a "N people are viewing this" line all mint a brand-new id on every
+ * tick. Nothing then matches `sentIds`, and the page re-classifies that
+ * snippet once a second for as long as the tab is open -- visible on Daraz as
+ * an endless run of "extracted 130 candidates, 1 new" in the console.
+ *
+ * Masking digit runs collapses "Only 3 left" / "Only 2 left" and
+ * "02:14:59" / "02:14:58" onto one key per element. That is the right
+ * granularity for this project: the finding is the *pattern* (scarcity,
+ * urgency), which does not change when the number does. The selector stays in
+ * the key so two different elements are never collapsed into each other.
+ */
+function churnKeyFor(candidate: { selector: string; text: string }): string {
+  return `${candidate.selector}|${candidate.text.replace(/\d+/g, "#")}`;
+}
+
 function detectPageLang(): Lang {
   const htmlLang = document.documentElement.lang?.slice(0, 2).toLowerCase();
   if (htmlLang === "hi" || htmlLang === "ne") return htmlLang;
@@ -38,17 +64,82 @@ export default defineContentScript({
     // overlay.ts checks `el.isConnected` before using one, so a stale
     // entry just gets skipped, not resurrected.
     const elementRegistry = new Map<string, Element>();
-    const overlay = mountOverlay((item) => elementRegistry.get(item.id) ?? null);
+
+    /**
+     * Ids we failed to re-locate since the last extraction pass. Without this,
+     * every unresolvable item would trigger a full-document text scan on every
+     * scroll frame. Cleared at the start of each extraction pass, because that
+     * is the only moment new nodes can have appeared.
+     */
+    const unresolvable = new Set<string>();
+
+    /**
+     * Three-tier resolution, in decreasing order of confidence:
+     *
+     *   1. the live registry, if its node is still attached;
+     *   2. the positional CSS path captured at extraction time;
+     *   3. a text scan of the current document.
+     *
+     * Tier 1 alone was the bug behind disappearing badges on SPAs like Jeevee:
+     * when the framework re-renders a subtree it replaces the nodes, so the
+     * registry entry becomes a detached element. overlay.ts checks
+     * `isConnected` and skips it -- but the `?? document.querySelector(...)`
+     * fallback there never fired, because a *detached* element is still
+     * non-null. The badge silently vanished with no fallback attempted.
+     * Deleting the dead entry here is what re-arms tiers 2 and 3.
+     */
+    function resolveForItem(item: ClassifyItemResult): Element | null {
+      const cached = elementRegistry.get(item.id);
+      if (cached?.isConnected) return cached;
+      if (cached) elementRegistry.delete(item.id);
+      if (unresolvable.has(item.id)) return null;
+
+      const bySelector = querySelectorSafe(item.selector);
+      if (bySelector && textMatches(bySelector, item.text)) {
+        elementRegistry.set(item.id, bySelector);
+        return bySelector;
+      }
+
+      // A re-render usually keeps the *text* even when it changes the DOM
+      // path, so matching on the candidate's own text is the most durable
+      // handle we have. Costly, hence the negative cache above.
+      const byText = findElementByText(item.text);
+      if (byText) {
+        elementRegistry.set(item.id, byText);
+        return byText;
+      }
+
+      // Last resort: the selector resolved to *something* whose text has
+      // since changed (a countdown timer's own node, typically). Better to
+      // badge that than to drop the finding entirely.
+      if (bySelector) {
+        elementRegistry.set(item.id, bySelector);
+        return bySelector;
+      }
+
+      unresolvable.add(item.id);
+      return null;
+    }
+
+    const overlay = mountOverlay(resolveForItem);
     // Ids already sent to background this session -- avoid resending a
     // candidate the backend has already resolved (docs/ARCHITECTURE.md 4.1,
     // "Hash and dedupe"). The background worker also dedupes independently
     // (its cache survives worker restarts, this doesn't need to), but
     // skipping the resend here saves the message-passing round trip too.
     const sentIds = new Set<string>();
+    /** Same purpose as `sentIds`, but keyed so a ticking counter maps onto one
+     * entry instead of a fresh one per tick -- see churnKeyFor. */
+    const sentChurnKeys = new Set<string>();
 
     let debounceHandle: ReturnType<typeof setTimeout> | null = null;
+    let lastExtractionAt = 0;
 
     async function runExtraction() {
+      lastExtractionAt = Date.now();
+      // New nodes may have appeared -- give previously unresolvable findings
+      // another chance to bind to the freshly rendered DOM.
+      unresolvable.clear();
       const pairs = await extractCandidatesWithElements(lang);
 
       // Timer cadence: record every element's current text on every pass
@@ -66,7 +157,10 @@ export default defineContentScript({
         ruleHits: runRules(candidate, el),
       }));
 
-      const toSend = withHits.filter(({ candidate }) => !sentIds.has(candidate.id));
+      const toSend = withHits.filter(
+        ({ candidate }) =>
+          !sentIds.has(candidate.id) && !sentChurnKeys.has(churnKeyFor(candidate)),
+      );
 
       // console.log, not console.debug -- DevTools hides the "Verbose" level
       // by default, so a debug-level log here silently looks like "nothing
@@ -80,13 +174,33 @@ export default defineContentScript({
       (window as unknown as Record<string, unknown>).__dpLastPairs = pairs.map(
         ({ candidate }) => ({ text: candidate.text, tag: candidate.tag, role: candidate.role }),
       );
+      // `churn-suppressed` counts candidates with an unseen id whose
+      // digit-masked key was already sent -- i.e. counters that ticked. A
+      // steady non-zero number here is normal and healthy on a page with a
+      // countdown; it used to be the number of redundant API round trips per
+      // second.
+      const churnSuppressed = withHits.filter(
+        ({ candidate }) =>
+          !sentIds.has(candidate.id) && sentChurnKeys.has(churnKeyFor(candidate)),
+      ).length;
       console.log(
         `[dark-pattern-analyzer] extracted ${pairs.length} candidates, ${toSend.length} new ` +
-          `(lang=${lang}). Inspect window.__dpLastPairs for the exact text sent.`,
+          `(${churnSuppressed} churn-suppressed, lang=${lang}). ` +
+          `Inspect window.__dpLastPairs for the exact text sent.`,
       );
 
+      // The registry has just been repointed at the current nodes, so ask the
+      // overlay to re-resolve and re-place its badges. This must happen before
+      // the early return below: on an SPA the common case after a re-render is
+      // *zero* new candidates (same text, new nodes), and that is exactly the
+      // case where badges were disappearing until the user next scrolled.
+      overlay.refresh();
+
       if (toSend.length === 0) return;
-      for (const { candidate } of toSend) sentIds.add(candidate.id);
+      for (const { candidate } of toSend) {
+        sentIds.add(candidate.id);
+        sentChurnKeys.add(churnKeyFor(candidate));
+      }
 
       try {
         const response = (await chrome.runtime.sendMessage({
@@ -114,7 +228,11 @@ export default defineContentScript({
 
     function scheduleExtraction() {
       if (debounceHandle) clearTimeout(debounceHandle);
-      debounceHandle = setTimeout(runExtraction, DEBOUNCE_MS);
+      // Debounce *and* rate-limit: whichever is later wins. On a page whose
+      // mutations never stop, the debounce alone never lets the queue drain.
+      const sinceLast = Date.now() - lastExtractionAt;
+      const delay = Math.max(DEBOUNCE_MS, MIN_EXTRACTION_INTERVAL_MS - sinceLast);
+      debounceHandle = setTimeout(runExtraction, delay);
     }
 
     // Initial pass.
@@ -209,7 +327,7 @@ export default defineContentScript({
         );
         chrome.storage.onChanged.addListener((changes, area) => {
           if (area !== "session" || !(storageKey in changes)) return;
-          const newValue = changes[storageKey].newValue as
+          const newValue = changes[storageKey]?.newValue as
             | { items: ClassifyItemResult[]; pageScore: number }
             | undefined;
           if (!newValue?.items) return;
@@ -224,6 +342,72 @@ export default defineContentScript({
       );
   },
 });
+
+function normalizeText(value: string | null | undefined): string {
+  return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+/** `document.querySelector` never throws on a *stale* selector, but a path
+ * built around an id that contained exotic characters can still be rejected
+ * as a syntax error. A throw here would abort the whole render loop. */
+function querySelectorSafe(selector: string): Element | null {
+  if (!selector) return null;
+  try {
+    return document.querySelector(selector);
+  } catch {
+    return null;
+  }
+}
+
+function textMatches(el: Element, text: string): boolean {
+  const target = normalizeText(text);
+  if (!target) return false;
+  const actual = normalizeText(el.textContent);
+  // Extraction may have used only the element's *direct* text, or joined its
+  // inline children (extract.ts's leafBlockText), so containment in either
+  // direction is the honest comparison -- exact equality would reject
+  // legitimate matches.
+  return actual === target || actual.includes(target);
+}
+
+/** Elements scanned before giving up on a text lookup. A cap matters: on a
+ * large listing page an unbounded scan runs per unresolved finding. */
+const TEXT_SCAN_LIMIT = 4000;
+
+/**
+ * Finds the *deepest* element whose text matches, so we badge the price tag
+ * rather than the product card that contains it. Returns null rather than
+ * guessing when nothing matches.
+ */
+function findElementByText(text: string): Element | null {
+  const target = normalizeText(text);
+  if (target.length < 3) return null;
+
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT);
+  let best: Element | null = null;
+  let bestDepth = -1;
+  let scanned = 0;
+
+  let node = walker.nextNode() as Element | null;
+  while (node && scanned < TEXT_SCAN_LIMIT) {
+    scanned += 1;
+    const el = node;
+    node = walker.nextNode() as Element | null;
+
+    if (el.id === "dark-pattern-analyzer-overlay-host") continue;
+    const actual = normalizeText(el.textContent);
+    // Cheap reject first: containment is far cheaper than the depth walk.
+    if (!actual.includes(target)) continue;
+
+    let depth = 0;
+    for (let p = el.parentElement; p; p = p.parentElement) depth += 1;
+    if (depth > bestDepth) {
+      best = el;
+      bestDepth = depth;
+    }
+  }
+  return best;
+}
 
 /** Lightweight local mirror of selector.ts's stableSelector, used only by
  * the cadence observer above so it doesn't need to import the extraction

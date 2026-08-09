@@ -2,6 +2,7 @@ import type { Lang } from "../taxonomy";
 import { snippetId } from "../hash";
 import { inferRole } from "./role";
 import { stableSelector } from "./selector";
+import { stickyChromeAncestor } from "./sticky";
 import {
   MAX_TEXT_LENGTH,
   MIN_TEXT_LENGTH,
@@ -256,6 +257,15 @@ export async function extractCandidatesWithElements(
         continue;
       }
       if (!isVisible(el)) continue;
+
+      // Skip text living inside a pinned header/navbar. Its viewport rect
+      // never changes while scrolling, so any badge anchored to it would sit
+      // welded to the top-left corner of the screen for the whole session --
+      // and the text itself ("Returns & Orders", "Help", "Cancel") is site
+      // chrome, not a checkout-flow dark pattern. Non-nav fixed/sticky
+      // elements (cookie banners, modals, bottom bars) are deliberately still
+      // extracted -- see lib/extract/sticky.ts.
+      if (stickyChromeAncestor(el)) continue;
 
       const id = await snippetId(lang, candidateText);
       if (seen.has(id)) continue;
