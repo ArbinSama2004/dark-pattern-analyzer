@@ -24,7 +24,7 @@ const BADGE_STYLE = `
     cursor: pointer;
     pointer-events: auto;
     white-space: nowrap;
-    transform: translate(-4px, -50%);
+    transform: translateY(-100%);
   }
   .badge:hover { background: #9a3412; }
   .badge.likely { background: #7c2d12; }
@@ -66,14 +66,34 @@ export function mountOverlay(): MountedOverlay {
       if (!el) continue;
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) continue;
+      // Skip elements currently scrolled out of the viewport entirely --
+      // a badge positioned off-screen is not just wasted, it can also throw
+      // off layout when it re-enters, and there's nothing to click on yet.
+      if (rect.bottom < 0 || rect.top > window.innerHeight) continue;
 
       const finding = topFinding(item);
       if (!finding) continue;
 
       const badge = document.createElement("div");
       badge.className = `badge ${finding.confidence}`;
-      badge.style.top = `${rect.top}px`;
-      badge.style.left = `${rect.right}px`;
+      // Anchor near the top-left corner, not top-right (rect.right). Wide
+      // block-level elements -- a product description paragraph, a full-row
+      // bullet list item -- can be nearly viewport-width, which pushed the
+      // badge off-screen or far from the text it actually describes. Clamp
+      // both axes so the badge always stays visible even for elements that
+      // start near an edge.
+      const BADGE_APPROX_WIDTH = 140;
+      const BADGE_APPROX_HEIGHT = 20;
+      const top = Math.min(
+        Math.max(rect.top, 4),
+        window.innerHeight - BADGE_APPROX_HEIGHT - 4,
+      );
+      const left = Math.min(
+        Math.max(rect.left, 4),
+        window.innerWidth - BADGE_APPROX_WIDTH - 4,
+      );
+      badge.style.top = `${top}px`;
+      badge.style.left = `${left}px`;
       badge.textContent =
         item.findings.length > 1
           ? `⚠ ${finding.label.replace(/_/g, " ")} +${item.findings.length - 1}`

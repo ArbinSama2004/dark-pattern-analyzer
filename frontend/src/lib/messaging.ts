@@ -30,6 +30,17 @@ export interface ClassifyResultMessage {
   pageScore: number;
 }
 
+/** Pushed background.ts -> content.ts after every batch completes, in
+ * addition to the eventual sendResponse to the original message. Lets the
+ * on-page overlay update live instead of freezing until the whole page's
+ * batches finish (which can take 15-30s+ on fp32 CPU inference -- see
+ * docs/PROGRESS.md "Latency is not claimed"). */
+export interface ClassifyProgressMessage {
+  type: "dp/classify-progress";
+  results: ClassifyItemResult[];
+  pageScore: number;
+}
+
 /** Sent sidepanel/popup -> content.ts to scroll to and briefly highlight the
  * DOM node behind a finding. */
 export interface ScrollToMessage {
@@ -39,6 +50,7 @@ export interface ScrollToMessage {
 
 export type ExtensionMessage =
   | ClassifyCandidatesMessage
+  | ClassifyProgressMessage
   | ScrollToMessage;
 
 /** chrome.storage.session key holding the latest findings for a tab, so the

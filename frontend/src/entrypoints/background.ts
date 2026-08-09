@@ -79,11 +79,54 @@ async function handleClassifyCandidates(
   if (tabId === undefined) return { items: [], pageScore: 0 };
   if (!(await isScanEnabled())) return { items: [], pageScore: 0 };
 
+  // Captured as its own const so TS keeps the number-not-undefined narrowing
+  // inside the persistProgress closure below (narrowing of the outer `tabId`
+  // parameter doesn't survive across a nested function boundary).
+  const knownTabId: number = tabId;
+
   const capped = message.candidates.slice(0, MAX_SNIPPETS_PER_PAGE);
   const cache = await loadCache();
 
   const uncached = capped.filter(({ candidate }) => !(candidate.id in cache));
   const batches = chunk(uncached, BATCH_SIZE);
+
+  // Merges whatever is in `cache` right now into stored findings and writes
+  // it to chrome.storage.session. Called after every batch (not just once at
+  // the end) for two reasons:
+  //  1. The side panel listens on chrome.storage.onChanged, so results
+  //     appear live as batches complete instead of after the whole page --
+  //     which matters a lot on fp32 CPU inference (see docs/PROGRESS.md
+  //     "Latency is not claimed"): a large page can take many seconds across
+  //     many batches.
+  //  2. If the service worker is killed or the message channel times out
+  //     before the final sendResponse (exactly the failure mode behind
+  //     "message channel closed before a response was received"), findings
+  //     already written to storage are not lost -- only the content
+  //     script's overlay update for this pass is.
+  function persistProgress(): { items: ClassifyItemResult[]; pageScore: number } {
+    const items: ClassifyItemResult[] = capped.map(({ candidate, ruleHits }) => {
+      const modelResult = cache[candidate.id];
+      return {
+        id: candidate.id,
+        text: candidate.text,
+        role: candidate.role,
+        selector: candidate.selector,
+        findings: mergeFindings(ruleHits, modelResult),
+      };
+    });
+    const withFindings = items.filter((i) => i.findings.length > 0);
+    const pageScore = computePageScore(withFindings.map((i) => i.findings));
+    const stored: StoredFindings = {
+      pageScore,
+      updatedAt: Date.now(),
+      items: withFindings,
+    };
+    // Fire-and-forget: batches must not wait on this write to keep going.
+    void chrome.storage.session.set({ [findingsStorageKey(knownTabId)]: stored });
+    return { items: withFindings, pageScore };
+  }
+
+  let latest = persistProgress(); // rule-only findings visible immediately, before any batch returns
 
   for (const batch of batches) {
     if (batch.length === 0) continue;
@@ -108,32 +151,12 @@ async function handleClassifyCandidates(
       // below, just without model evidence.
       console.error("[dark-pattern-analyzer] classify batch failed", err);
     }
+    latest = persistProgress();
   }
 
   await saveCache(cache);
 
-  const items: ClassifyItemResult[] = capped.map(({ candidate, ruleHits }) => {
-    const modelResult = cache[candidate.id];
-    return {
-      id: candidate.id,
-      text: candidate.text,
-      role: candidate.role,
-      selector: candidate.selector,
-      findings: mergeFindings(ruleHits, modelResult),
-    };
-  });
-
-  const withFindings = items.filter((i) => i.findings.length > 0);
-  const pageScore = computePageScore(withFindings.map((i) => i.findings));
-
-  const stored: StoredFindings = {
-    pageScore,
-    updatedAt: Date.now(),
-    items: withFindings,
-  };
-  await chrome.storage.session.set({ [findingsStorageKey(tabId)]: stored });
-
-  return { items: withFindings, pageScore };
+  return latest;
 }
 
 export default defineBackground(() => {

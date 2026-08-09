@@ -1,0 +1,92 @@
+[
+  {
+    "model_key": "mdistilbert",
+    "model": "distilbert-base-multilingual-cased",
+    "lang": "en",
+    "fertility": 1.504,
+    "tokens_per_snippet": 11.4,
+    "p95_tokens": 18,
+    "unk_rate": 0.01183,
+    "vocab_size": 119547
+  },
+  {
+    "model_key": "mdistilbert",
+    "model": "distilbert-base-multilingual-cased",
+    "lang": "hi",
+    "fertility": 2.196,
+    "tokens_per_snippet": 18.8,
+    "p95_tokens": 30,
+    "unk_rate": 0.00646,
+    "vocab_size": 119547
+  },
+  {
+    "model_key": "mdistilbert",
+    "model": "distilbert-base-multilingual-cased",
+    "lang": "ne",
+    "fertility": 2.937,
+    "tokens_per_snippet": 21.2,
+    "p95_tokens": 34,
+    "unk_rate": 0.00606,
+    "vocab_size": 119547
+  },
+  {
+    "model_key": "muril",
+    "model": "google/muril-base-cased",
+    "lang": "en",
+    "fertility": 1.3,
+    "tokens_per_snippet": 9.9,
+    "p95_tokens": 16,
+    "unk_rate": 0.0,
+    "vocab_size": 197285
+  },
+  {
+    "model_key": "muril",
+    "model": "google/muril-base-cased",
+    "lang": "hi",
+    "fertility": 1.302,
+    "tokens_per_snippet": 11.2,
+    "p95_tokens": 19,
+    "unk_rate": 0.0,
+    "vocab_size": 197285
+  },
+  {
+    "model_key": "muril",
+    "model": "google/muril-base-cased",
+    "lang": "ne",
+    "fertility": 1.508,
+    "tokens_per_snippet": 10.9,
+    "p95_tokens": 18,
+    "unk_rate": 0.0,
+    "vocab_size": 197285
+  },
+  {
+    "model_key": "xlmr",
+    "model": "xlm-roberta-base",
+    "lang": "en",
+    "fertility": 1.406,
+    "tokens_per_snippet": 10.7,
+    "p95_tokens": 17,
+    "unk_rate": 0.0,
+    "vocab_size": 250002
+  },
+  {
+    "model_key": "xlmr",
+    "model": "xlm-roberta-base",
+    "lang": "hi",
+    "fertility": 1.54,
+    "tokens_per_snippet": 13.2,
+    "p95_tokens": 22,
+    "unk_rate": 0.0,
+    "vocab_size": 250002
+  },
+  {
+    "model_key": "xlmr",
+    "model": "xlm-roberta-base",
+    "lang": "ne",
+    "fertility": 1.705,
+    "tokens_per_snippet": 12.3,
+    "p95_tokens": 20,
+    "unk_rate": 0.0,
+    "vocab_size": 250002
+  }
+]

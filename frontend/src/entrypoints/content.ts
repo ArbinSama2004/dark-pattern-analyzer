@@ -9,6 +9,7 @@ import { runRules } from "../lib/rules";
 import type { Lang } from "../lib/taxonomy";
 import type {
   CandidateWithHits,
+  ClassifyProgressMessage,
   ClassifyResultMessage,
   ScrollToMessage,
 } from "../lib/messaging";
@@ -126,12 +127,20 @@ export default defineContentScript({
       subtree: true,
     });
 
-    // Listen for the side panel's "scroll to and highlight" requests.
-    chrome.runtime.onMessage.addListener((message: ScrollToMessage) => {
-      if (message.type === "dp/scroll-to") {
-        scrollAndHighlight(message.selector);
-      }
-    });
+    // Listen for the side panel's "scroll to and highlight" requests, and
+    // for background.ts's live per-batch progress pushes (so the overlay
+    // updates as results come in on slow fp32-CPU pages instead of freezing
+    // until the whole page's batches finish -- see background.ts's
+    // persistProgress for why).
+    chrome.runtime.onMessage.addListener(
+      (message: ScrollToMessage | ClassifyProgressMessage) => {
+        if (message.type === "dp/scroll-to") {
+          scrollAndHighlight(message.selector);
+        } else if (message.type === "dp/classify-progress") {
+          overlay.update(message.results);
+        }
+      },
+    );
   },
 });
 

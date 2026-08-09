@@ -1,0 +1,10 @@
+model_key,model,lang,fertility,tokens_per_snippet,p95_tokens,unk_rate,vocab_size
+mdistilbert,distilbert-base-multilingual-cased,en,1.504,11.4,18,0.01183,119547
+mdistilbert,distilbert-base-multilingual-cased,hi,2.196,18.8,30,0.00646,119547
+mdistilbert,distilbert-base-multilingual-cased,ne,2.937,21.2,34,0.00606,119547
+muril,google/muril-base-cased,en,1.3,9.9,16,0.0,197285
+muril,google/muril-base-cased,hi,1.302,11.2,19,0.0,197285
+muril,google/muril-base-cased,ne,1.508,10.9,18,0.0,197285
+xlmr,xlm-roberta-base,en,1.406,10.7,17,0.0,250002
+xlmr,xlm-roberta-base,hi,1.54,13.2,22,0.0,250002
+xlmr,xlm-roberta-base,ne,1.705,12.3,20,0.0,250002
