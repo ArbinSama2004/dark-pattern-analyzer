@@ -1,5 +1,5 @@
 import { describe, expect, it, afterEach } from "vitest";
-import { extractCandidates } from "./extract";
+import { extractCandidates, extractCandidatesWithElements } from "./extract";
 
 /**
  * jsdom does not implement layout, so `offsetParent` is always null
@@ -85,5 +85,61 @@ describe("extractCandidates visibility handling", () => {
     const candidates = await extractCandidates("en");
     const texts = candidates.map((c) => c.text);
     expect(texts).not.toContain("Nested hidden text");
+  });
+});
+
+describe("extractCandidatesWithElements occurrence identity (Fix 1)", () => {
+  it("keeps three identical-text buttons as three independently addressable candidates", async () => {
+    // The exact regression this fix targets: Product A/B/C each have their
+    // own "Add to Cart" button. Before Fix 1, candidate.id was
+    // sha1(lang+text) alone, so only the first of these three ever became a
+    // candidate at all -- the other two were silently dropped in extract.ts's
+    // `seen` dedupe, before role inference even ran on them.
+    document.body.innerHTML = `
+      <div id="product-a"><button>Add to Cart</button></div>
+      <div id="product-b"><button>Add to Cart</button></div>
+      <div id="product-c"><button>Add to Cart</button></div>
+    `;
+    for (const btn of document.querySelectorAll("button")) {
+      Object.defineProperty(btn, "offsetParent", {
+        configurable: true,
+        get: () => document.body,
+      });
+    }
+
+    const pairs = await extractCandidatesWithElements("en");
+    const addToCart = pairs.filter((p) => p.candidate.text === "Add to Cart");
+
+    expect(addToCart).toHaveLength(3);
+    // Distinct occurrence ids...
+    expect(new Set(addToCart.map((p) => p.candidate.id)).size).toBe(3);
+    // ...each pointing at its own physical element, not one shared node.
+    expect(new Set(addToCart.map((p) => p.el))).toEqual(
+      new Set([
+        document.querySelector("#product-a button"),
+        document.querySelector("#product-b button"),
+        document.querySelector("#product-c button"),
+      ]),
+    );
+  });
+
+  it("still produces exactly one candidate for a single physical button", async () => {
+    // Sanity check that the `seen` guard still does its narrower job: a
+    // single walk of the document never visits the same node twice, so this
+    // is really asserting extraction doesn't fabricate duplicates out of one
+    // element on a plain page. Wrapped in a div (not one of extract.ts's
+    // INLINE_TAGS) so `document.body` itself doesn't also qualify as a
+    // leaf-block candidate via its own text-coalescing heuristic -- that's a
+    // real, separate two-different-elements case, not what this test is for.
+    document.body.innerHTML = `<div id="only-wrap"><button id="only">Add to Cart</button></div>`;
+    Object.defineProperty(document.getElementById("only"), "offsetParent", {
+      configurable: true,
+      get: () => document.body,
+    });
+
+    const pairs = await extractCandidatesWithElements("en");
+    const addToCart = pairs.filter((p) => p.candidate.text === "Add to Cart");
+    expect(addToCart).toHaveLength(1);
+    expect(addToCart[0]?.el).toBe(document.getElementById("only"));
   });
 });

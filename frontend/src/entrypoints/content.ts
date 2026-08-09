@@ -29,11 +29,13 @@ const MIN_EXTRACTION_INTERVAL_MS = 1000;
 /**
  * Dedupe key that survives a counter ticking.
  *
- * `candidate.id` is sha1(lang + text), so a countdown timer, a stock counter
- * and a "N people are viewing this" line all mint a brand-new id on every
- * tick. Nothing then matches `sentIds`, and the page re-classifies that
- * snippet once a second for as long as the tab is open -- visible on Daraz as
- * an endless run of "extracted 130 candidates, 1 new" in the console.
+ * `candidate.id` is occurrenceId(lang, text, selector) as of Fix 1 (still
+ * text-sensitive), so a countdown timer, a stock counter and a "N people are
+ * viewing this" line all mint a brand-new id on every tick even though their
+ * selector hasn't moved. Nothing then matches `sentIds`, and the page
+ * re-classifies that snippet once a second for as long as the tab is open --
+ * visible on Daraz as an endless run of "extracted 130 candidates, 1 new" in
+ * the console.
  *
  * Masking digit runs collapses "Only 3 left" / "Only 2 left" and
  * "02:14:59" / "02:14:58" onto one key per element. That is the right
@@ -55,14 +57,18 @@ export default defineContentScript({
   matches: ["<all_urls>"],
   main() {
     const lang = detectPageLang();
-    // Live element registry, keyed by the same content-hash id used for
-    // dedupe/caching (hash.ts / snippetId). Refreshed on every extraction
-    // pass. This is what lets the overlay find the right node even after a
-    // framework re-render has invalidated a positionally-computed selector
-    // -- see ui/overlay.ts's resolveElement doc comment. Elements for ids
-    // no longer present on the page are left in place rather than pruned;
-    // overlay.ts checks `el.isConnected` before using one, so a stale
-    // entry just gets skipped, not resurrected.
+    // Live element registry, keyed by candidate.id -- as of Fix 1, an
+    // *occurrence* id (hash.ts's occurrenceId: lang+selector+text), not a
+    // text-only hash. Each distinct DOM occurrence of the same string (three
+    // separate "Add to Cart" buttons, say) therefore gets its own registry
+    // entry pointing at its own element, instead of all three overwriting
+    // one shared slot. Refreshed on every extraction pass. This is what lets
+    // the overlay find the right node even after a framework re-render has
+    // invalidated a positionally-computed selector -- see ui/overlay.ts's
+    // resolveElement doc comment. Elements for ids no longer present on the
+    // page are left in place rather than pruned; overlay.ts checks
+    // `el.isConnected` before using one, so a stale entry just gets skipped,
+    // not resurrected.
     const elementRegistry = new Map<string, Element>();
 
     /**

@@ -1,5 +1,5 @@
 import type { Lang } from "../taxonomy";
-import { snippetId } from "../hash";
+import { occurrenceId } from "../hash";
 import { inferRole } from "./role";
 import { stableSelector } from "./selector";
 import { stickyChromeAncestor } from "./sticky";
@@ -267,7 +267,20 @@ export async function extractCandidatesWithElements(
       // extracted -- see lib/extract/sticky.ts.
       if (stickyChromeAncestor(el)) continue;
 
-      const id = await snippetId(lang, candidateText);
+      // Computed before the id so the id can fold in position, not just
+      // text -- see hash.ts's occurrenceId doc comment. This is what keeps
+      // "Add to Cart" on product A distinct from "Add to Cart" on product B:
+      // previously the id was sha1(lang+text) alone, so every DOM occurrence
+      // of the same string collapsed onto one candidate, one elementRegistry
+      // entry, and one badge -- silently discarding the rest with no record,
+      // and role inference below only ever ran on whichever occurrence the
+      // walker reached first.
+      const selector = stableSelector(el);
+      const id = await occurrenceId(lang, candidateText, selector);
+      // Still guards against a genuine collision (two distinct elements
+      // landing on the same selector, which selector.ts's own doc comment
+      // says is possible on a pathological page) -- not, as before, the
+      // primary mechanism for suppressing same-text duplicates.
       if (seen.has(id)) continue;
       seen.add(id);
 
@@ -292,7 +305,7 @@ export async function extractCandidatesWithElements(
               : null,
           is_animated: false, // set by the timer-cadence tracker, see entrypoints/content.ts
           step,
-          selector: stableSelector(el),
+          selector,
         },
         el,
       });

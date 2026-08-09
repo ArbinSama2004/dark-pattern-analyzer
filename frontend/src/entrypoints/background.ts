@@ -10,6 +10,8 @@
  */
 import { createClassifyClient, type SnippetResult } from "../lib/api/classify";
 import { mergeFindings, computePageScore } from "../lib/merge";
+import { modelCacheKey } from "../lib/hash";
+import type { CandidateWithHits } from "../lib/messaging";
 import {
   findingsStorageKey,
   SCAN_ENABLED_KEY,
@@ -52,10 +54,39 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
-/** Session-scoped id -> result cache, persisted to chrome.storage.session
- * (survives a worker restart, cleared when the browser session ends) so a
- * MutationObserver re-run doesn't re-pay for an id already resolved. */
+/** Session-scoped model-cache-key -> result cache, persisted to
+ * chrome.storage.session (survives a worker restart, cleared when the
+ * browser session ends) so a MutationObserver re-run doesn't re-pay for a
+ * model input already resolved.
+ *
+ * Keyed by `modelCacheKey` (lang+tag+role+text), NOT by candidate.id. As of
+ * Fix 1, candidate.id is an *occurrence* id (unique per DOM node -- see
+ * hash.ts) and must never be used as a cache key: keying this cache by
+ * occurrence id would mean three identical "Add to Cart" buttons each pay
+ * for their own forward pass and never share a result, defeating the whole
+ * point of caching. Different occurrences with the same effective model
+ * input are still allowed -- and expected -- to share one entry here. */
 const CACHE_STORAGE_KEY = "dp/classify-cache";
+
+/** Resolves every candidate's model-cache key up front so the rest of
+ * handleClassifyCandidates can do plain synchronous Map/object lookups
+ * instead of threading `await` through filters and loops. */
+async function buildModelKeys(
+  candidates: CandidateWithHits[],
+): Promise<Map<string, string>> {
+  const entries = await Promise.all(
+    candidates.map(async ({ candidate }) => {
+      const key = await modelCacheKey(
+        candidate.lang,
+        candidate.text,
+        candidate.tag,
+        candidate.role,
+      );
+      return [candidate.id, key] as const;
+    }),
+  );
+  return new Map(entries);
+}
 
 async function loadCache(): Promise<Record<string, SnippetResult>> {
   const stored = await chrome.storage.session.get(CACHE_STORAGE_KEY);
@@ -97,6 +128,10 @@ async function handleClassifyCandidates(
 
   const capped = message.candidates.slice(0, MAX_SNIPPETS_PER_PAGE);
   const cache = await loadCache();
+  // occurrenceId (candidate.id) -> modelCacheKey, one lookup built per
+  // message so the model/cache identity is computed exactly once per
+  // candidate rather than recomputed at every access below.
+  const modelKeys = await buildModelKeys(capped);
 
   // Every finding known for this page so far, keyed by candidate id, seeded
   // from storage and then updated with this message's candidates.
@@ -116,7 +151,10 @@ async function handleClassifyCandidates(
     accumulated.set(item.id, item);
   }
 
-  const uncached = capped.filter(({ candidate }) => !(candidate.id in cache));
+  const uncached = capped.filter(({ candidate }) => {
+    const key = modelKeys.get(candidate.id);
+    return key !== undefined && !(key in cache);
+  });
   const batches = chunk(uncached, BATCH_SIZE);
 
   // Merges whatever is in `cache` right now into stored findings and writes
@@ -134,7 +172,8 @@ async function handleClassifyCandidates(
   //     script's overlay update for this pass is.
   function persistProgress(): { items: ClassifyItemResult[]; pageScore: number } {
     for (const { candidate, ruleHits } of capped) {
-      const findings = mergeFindings(ruleHits, cache[candidate.id]);
+      const modelKey = modelKeys.get(candidate.id);
+      const findings = mergeFindings(ruleHits, modelKey ? cache[modelKey] : undefined);
       if (findings.length === 0) {
         // Benign after merging. Drop it rather than leaving a stale entry --
         // a snippet can only move to benign if a batch has now resolved it.
@@ -223,8 +262,17 @@ async function handleClassifyCandidates(
         `[dark-pattern-analyzer] batch ${i + 1}/${batches.length}: ` +
           `${response.results.length} results, ${response.meta.inference_ms}ms inference`,
       );
+      // `result.ref` is the occurrence id we sent as `ref` (see the
+      // classify() call below) -- echoed back per snippet, one result per
+      // occurrence sent, even when several occurrences shared one forward
+      // pass server-side (classify.py's own pending_index dedup). Store the
+      // result under that occurrence's *model key*, not under `ref` itself,
+      // so every other occurrence with the same effective model input --
+      // including ones not sent in this batch at all -- can find it too.
       for (const result of response.results) {
-        if (result.ref) cache[result.ref] = result;
+        if (!result.ref) continue;
+        const key = modelKeys.get(result.ref);
+        if (key) cache[key] = result;
       }
     } catch (err) {
       // A batch failing after retries shouldn't take down the whole page's
