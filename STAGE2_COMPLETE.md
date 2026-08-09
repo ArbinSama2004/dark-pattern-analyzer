@@ -129,27 +129,39 @@ int8. Do not restate under 100 ms as verified.
 
 ---
 
-## 5. Stage 1 status update -- the bundle is never actually lost
+## 5. Stage 1 status update -- the bundle was never actually lost
 
 The earlier assumption (Colab session hit its GPU limit, bundle gone) was wrong.
 `model.onnx` was on local disk the whole time at `ml/artifacts/model_v1/`
 (951,654,037 bytes, fp32) -- it only looked missing because handoff zips were built
-with `git archive`, which omits gitignored files by design. Parity (100.00% /
-0.00000) and the smoke check (`scarcity=0.626`) both pass against this file.
+with `git archive`, which omits gitignored files by design.
+
+`make smoke-backend` now passes against this exact file: `scarcity=0.626` exact
+match on the reference sample, plus 8 sane hand-written multilingual samples.
 `docs/RESULTS.md` section 3 is filled: en 0.8891, hi 0.9054, ne 0.9091.
 
-**No re-run needed. Do not re-run the notebook.**
+`make parity` (PyTorch vs ONNX agreement) could **not** be independently re-run,
+because it needs `ml/artifacts/model_v1/pytorch/`, the original PyTorch checkpoint --
+which was never kept locally (Colab checkpoints are ephemeral by design). The
+original Stage 1 parity result (100.00% / 0.00000) stands for this export; smoke
+passing is consistent with it but is not a substitute (smoke alone catches gross
+collapse, not subtle numeric drift -- see `backend/scripts/smoke_check.py`
+docstring). If full re-confirmation is wanted before Stage 4, regenerate only the
+PyTorch checkpoint (notebook section 5, seed 13, data v2.1) and run parity against
+this same `model.onnx` -- no re-export needed.
+
+**No full re-run needed. Do not re-run the whole notebook.**
 
 ### Now actually open -- Stage 2 needs real verification
 
 Everything in Section 3 above was checked with a stdlib harness because this sandbox
 had no network and couldn't install `fastapi`/`onnxruntime`/`tokenizers`/`pytest`.
-None of it has run against the real 951 MB bundle yet:
+Smoke check has now run for real against the 951 MB bundle; the rest hasn't:
 
 1. `make install-backend` (`cd backend && uv sync`)
 2. `make test-backend` -- expect `test_api.py` and the real-bundle parts of
    `test_bundle.py` to actually execute this time
-3. `make smoke-backend` -- must print `scarcity=0.626`
+3. `make smoke-backend` -- done, passed, `scarcity=0.626`
 4. `make dev` + `curl -s localhost:8000/readyz` -- expect `status: ready`
 5. Measure fp32 latency for real: 1 snippet, batch 8, batch 32, batch 64. Fill
    `docs/RESULTS.md` section 5 and correct `HANDOFF.md`'s latency budget, which was
