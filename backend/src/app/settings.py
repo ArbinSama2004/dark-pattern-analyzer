@@ -13,11 +13,28 @@ from pathlib import Path
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+#: ``backend/.env``, resolved from this file rather than from the working
+#: directory.
+#:
+#: This was ``env_file=".env"``, which pydantic-settings resolves relative to
+#: **CWD**. Every process that happened to start somewhere other than
+#: ``backend/`` therefore silently loaded no configuration at all and fell back
+#: to defaults -- including ``DP_MODEL_DIR``, whose default is relative and
+#: points outside the repo from any other directory. There is also an empty
+#: ``.env`` at the repo root (Docker Compose reads one there for its own
+#: variable interpolation), so a backend process started from the root would
+#: read *that* file, find nothing, and report a mystery misconfiguration.
+#:
+#: Anchoring it here means `uv run python scripts/...` behaves the same from
+#: any directory. A real environment variable still wins over the file, which
+#: is what deployments use.
+_BACKEND_ENV = Path(__file__).resolve().parents[2] / ".env"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="DP_",
-        env_file=".env",
+        env_file=_BACKEND_ENV,
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -112,8 +129,8 @@ class Settings(BaseSettings):
     # which is why the index exists rather than a key convention alone.
     #
     # PRIVACY: a trace contains real text from pages the user visited. This is
-    # off by default and gated a second time by an opt-in setting in the
-    # extension -- both must be on before anything is stored.
+    # off by default, and the extension only uploads when the user presses its
+    # "Save this scan to the archive" button -- there is no automatic path.
 
     #: Master switch. When false, /v1/traces returns 503 and stores nothing.
     minio_enabled: bool = False

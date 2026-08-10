@@ -262,3 +262,6 @@ test at the top of this document a completed sale count is a *settled, verifiabl
 aggregate* — benign, or at most social_proof. If that judgement holds across the gold
 set, it is a systematic false positive worth reporting per class rather than
 smoothing over.
+
+### make gold-eval prints and doesn't save, so capture it if you want a record:
+make gold-eval | tee data/gold/eval-$(date +%F).txt

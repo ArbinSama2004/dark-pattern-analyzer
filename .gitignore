@@ -48,6 +48,7 @@ Thumbs.db
 
 HANDOFF_FRONTEND_DEBUG.md
 HANDOFF_SESSION.md
+eval-2026-08-10.txt 
 
 # Trace index (derived data -- rebuildable from the MinIO bucket, and it
 # contains URLs of pages actually visited).
