@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { LABEL_DESCRIPTIONS, type Label } from "../../lib/taxonomy";
 import {
   findingsStorageKey,
+  type ContextReply,
+  type ExplainReply,
   type StoredFindings,
   type ClassifyItemResult,
 } from "../../lib/messaging";
@@ -205,6 +207,7 @@ export function SidePanel() {
                       <FindingDetail
                         item={item}
                         finding={finding}
+                        tabId={tabId}
                         onScrollTo={() => handleScrollTo(item.selector)}
                       />
                     )}
@@ -231,14 +234,17 @@ export function SidePanel() {
 function FindingDetail({
   item,
   finding,
+  tabId,
   onScrollTo,
 }: {
   item: ClassifyItemResult;
   finding: MergedFinding;
+  tabId: number | null;
   onScrollTo: () => void;
 }) {
   const hasRule = finding.source.includes("rule");
   const hasModel = finding.source.includes("model");
+  const explain = useExplanation(item, finding, tabId);
 
   const provenance = hasRule && hasModel
     ? "Both a structural page rule and the text classifier agree on this."
@@ -295,6 +301,59 @@ function FindingDetail({
         )}
       </dl>
 
+      <div>
+        <div className="text-[11px] uppercase tracking-wide text-gray-400">
+          In more detail
+        </div>
+
+        {explain.status === "idle" && (
+          <button
+            type="button"
+            className="w-full border rounded px-2 py-1 text-xs bg-white hover:bg-gray-100 mt-1"
+            onClick={explain.run}
+          >
+            Explain this finding
+          </button>
+        )}
+
+        {explain.status === "loading" && (
+          <p className="text-xs text-gray-500 mt-1">
+            Writing an explanation... a local model can take a while.
+          </p>
+        )}
+
+        {explain.status === "done" && (
+          <>
+            <p className="text-xs text-gray-700 mt-1 whitespace-pre-wrap">
+              {explain.explanation}
+            </p>
+            {/* Disclosure, not decoration: a different system wrote this text
+                than flagged the element, and the reader is entitled to know
+                which -- especially when the explanation is more fluent and
+                confident-sounding than the classifier's own evidence. */}
+            <p className="text-[10px] text-gray-400 mt-1">
+              Written by {explain.model}. It explains the finding above; it did
+              not make it, and cannot change it.
+            </p>
+          </>
+        )}
+
+        {explain.status === "error" && (
+          <div className="mt-1">
+            <p className="text-xs text-red-600">{explain.error}</p>
+            {explain.retryable && (
+              <button
+                type="button"
+                className="text-xs underline text-gray-500 hover:text-gray-700 mt-1"
+                onClick={explain.run}
+              >
+                Try again
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       <button
         type="button"
         className="w-full border rounded px-2 py-1 text-xs bg-white hover:bg-gray-100"
@@ -304,4 +363,90 @@ function FindingDetail({
       </button>
     </div>
   );
+}
+
+type ExplainState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "done"; explanation: string; model: string }
+  | { status: "error"; error: string; retryable: boolean };
+
+/**
+ * On-demand explanation for one finding.
+ *
+ * Fires only when the user asks, never on expand: a generation costs seconds
+ * on a local model and a rate-limit slot on a hosted one, and most findings
+ * are self-evident from the static description already shown above it.
+ *
+ * DOM context is gathered from the content script at request time rather than
+ * cached with the finding, because the page may have re-rendered since the
+ * scan and stale neighbours are worse than none.
+ */
+function useExplanation(
+  item: ClassifyItemResult,
+  finding: MergedFinding,
+  tabId: number | null,
+): ExplainState & { run: () => void } {
+  const [state, setState] = useState<ExplainState>({ status: "idle" });
+
+  // Reset when the hook is reused for a different finding -- without this, an
+  // explanation for one item can flash in the detail view of the next.
+  const identity = `${item.id}:${finding.label}`;
+  const [lastIdentity, setLastIdentity] = useState(identity);
+  if (identity !== lastIdentity) {
+    setLastIdentity(identity);
+    setState({ status: "idle" });
+  }
+
+  async function run() {
+    setState({ status: "loading" });
+
+    let context: Array<{ text: string; tag: string; role: string }> = [];
+    if (tabId !== null) {
+      try {
+        const reply = (await chrome.tabs.sendMessage(tabId, {
+          type: "dp/get-context",
+          selector: item.selector,
+        })) as ContextReply | undefined;
+        context = reply?.context ?? [];
+      } catch {
+        // The page navigated away, or has no content script. An explanation
+        // without neighbours is still useful, so this is not fatal.
+        context = [];
+      }
+    }
+
+    const reply = (await chrome.runtime.sendMessage({
+      type: "dp/explain",
+      request: {
+        text: item.text,
+        label: finding.label,
+        tag: item.tag,
+        role: item.role,
+        lang: "en",
+        confidence: finding.confidence,
+        source: finding.source,
+        score: finding.source.includes("model") ? finding.score : undefined,
+        threshold: finding.source.includes("model") ? finding.threshold : undefined,
+        rule_hits: [],
+        context,
+      },
+    })) as ExplainReply | undefined;
+
+    if (!reply) {
+      setState({
+        status: "error",
+        error: "The extension's background worker did not respond.",
+        retryable: true,
+      });
+      return;
+    }
+    if (!reply.ok) {
+      setState({ status: "error", error: reply.error, retryable: reply.retryable });
+      return;
+    }
+    setState({ status: "done", explanation: reply.explanation, model: reply.model });
+  }
+
+  return { ...state, run: () => void run() };
 }

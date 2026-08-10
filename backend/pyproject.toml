@@ -17,6 +17,9 @@ dependencies = [
     "onnxruntime>=1.19",
     "tokenizers>=0.19",
     "numpy>=1.26",
+    # Runtime, not just test: services/llm.py calls the configured
+    # OpenAI-compatible provider (Ollama locally, Groq for demos) over HTTP.
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]

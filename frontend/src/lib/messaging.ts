@@ -1,6 +1,7 @@
 import type { Candidate } from "./extract/types";
 import type { RuleHit } from "./rules/types";
 import type { MergedFinding } from "./merge";
+import type { ExplainRequest } from "./api/explain";
 
 /** One extracted candidate plus whatever the local rule engine already
  * found for it -- sent content.ts -> background.ts so the merge policy
@@ -62,11 +63,47 @@ export interface ExportTraceMessage {
   type: "dp/export-trace";
 }
 
+/** Sent side panel -> content.ts to collect the extracted candidates that sit
+ * near a finding in the DOM, for use as LLM explanation context. The content
+ * script is the only surface that knows the page's live element registry --
+ * the panel has findings, not the full extraction, and neighbouring text is
+ * usually *not* itself a finding (a price next to a countdown). */
+export interface GetContextMessage {
+  type: "dp/get-context";
+  selector: string;
+}
+
+export interface ContextReply {
+  context: Array<{ text: string; tag: string; role: string }>;
+}
+
+/** Sent side panel -> background.ts to request a plain-language explanation
+ * of one finding from POST /v1/explain. Routed through the background worker
+ * for the same reason classify is: the API base URL stays in one place.
+ *
+ * On demand, one finding at a time -- never batched at scan time. A page with
+ * 600 candidates already takes tens of seconds to classify; generating
+ * explanations nobody asked to read would multiply that for no benefit. */
+export interface ExplainMessage {
+  type: "dp/explain";
+  request: ExplainRequest;
+}
+
+/** Response to ExplainMessage. A discriminated result rather than a rejected
+ * promise, because chrome.runtime.sendMessage flattens thrown errors into an
+ * opaque lastError string and the UI needs the distinction between "provider
+ * is down, offer retry" and "this won't work, don't". */
+export type ExplainReply =
+  | { ok: true; explanation: string; model: string; cached: boolean }
+  | { ok: false; error: string; retryable: boolean };
+
 export type ExtensionMessage =
   | ClassifyCandidatesMessage
   | ClassifyProgressMessage
   | ScrollToMessage
-  | ExportTraceMessage;
+  | ExportTraceMessage
+  | ExplainMessage
+  | GetContextMessage;
 
 /** chrome.storage.session key holding the latest findings for a tab, so the
  * popup and side panel (which don't share a direct message channel with the

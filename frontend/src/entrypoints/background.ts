@@ -9,6 +9,7 @@
  * worker doesn't lose the dedupe cache mid-page.
  */
 import { createClassifyClient, type SnippetResult } from "../lib/api/classify";
+import { createExplainClient, ExplainApiError } from "../lib/api/explain";
 import { mergeFindings, computePageScore } from "../lib/merge";
 import { modelCacheKey } from "../lib/hash";
 import type { CandidateWithHits } from "../lib/messaging";
@@ -31,6 +32,7 @@ const MAX_SNIPPETS_PER_PAGE = 600;
 const API_BASE_URL = "http://localhost:8000";
 
 const client = createClassifyClient({ baseUrl: API_BASE_URL });
+const explainClient = createExplainClient({ baseUrl: API_BASE_URL });
 
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   let attempt = 0;
@@ -331,6 +333,40 @@ export default defineBackground(() => {
       if (message.type === "dp/get-tab-id") {
         sendResponse({ tabId: sender.tab?.id ?? null });
         return false;
+      }
+
+      if (message.type === "dp/explain") {
+        // Errors become a discriminated reply rather than a rejection:
+        // sendMessage collapses a thrown error into an opaque lastError
+        // string, which would lose the retryable/not distinction the panel
+        // needs to decide whether to offer a retry.
+        explainClient
+          .explain(message.request)
+          .then((response) =>
+            sendResponse({
+              ok: true,
+              explanation: response.explanation,
+              model: response.model,
+              cached: response.cached,
+            }),
+          )
+          .catch((err: unknown) => {
+            const isApiError = err instanceof ExplainApiError;
+            if (!isApiError) {
+              console.error("[dark-pattern-analyzer] explain request failed", err);
+            }
+            sendResponse({
+              ok: false,
+              error: isApiError
+                ? err.message
+                : "Could not reach the backend. Is it running on " +
+                  `${API_BASE_URL}?`,
+              // A transport-level failure (backend not running) is as
+              // retryable as a provider-level one.
+              retryable: isApiError ? err.retryable : true,
+            });
+          });
+        return true; // async response
       }
 
       if (message.type !== "dp/classify-candidates") return undefined;

@@ -32,6 +32,7 @@ from app.core.bundle import load_bundle
 from app.core.logging import configure_logging
 from app.services.cache import PredictionCache
 from app.services.inference import InferenceEngine
+from app.services.llm import ChatClient, LLMConfig
 from app.settings import Settings, get_settings
 
 log = logging.getLogger(__name__)
@@ -49,6 +50,37 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         max_entries=settings.cache_max_entries,
         ttl_seconds=settings.cache_ttl,
     )
+
+    # Explanations are an optional, independently-failing feature. The client is
+    # built here so the connection pool is shared across requests, but a failure
+    # to build it must not affect classification readiness -- /v1/explain reports
+    # its own unavailability, and /readyz continues to describe the classifier
+    # only. Reusing PredictionCache: the interface it needs (TTL + LRU over
+    # JSON-able dicts) is identical, and a second cache implementation would be
+    # the same code with a different name.
+    app.state.llm_client = None
+    app.state.explanation_cache = PredictionCache(
+        max_entries=settings.llm_cache_max_entries,
+        ttl_seconds=settings.cache_ttl,
+    )
+    if settings.llm_enabled:
+        app.state.llm_client = ChatClient(
+            LLMConfig(
+                base_url=settings.llm_base_url,
+                model=settings.llm_model,
+                api_key=settings.llm_api_key,
+                timeout=settings.llm_timeout,
+                max_tokens=settings.llm_max_tokens,
+                temperature=settings.llm_temperature,
+            )
+        )
+        log.info(
+            "LLM explanations enabled: model=%s via %s",
+            settings.llm_model,
+            settings.llm_base_url,
+        )
+    else:
+        log.info("LLM explanations disabled (set DP_LLM_ENABLED=true to enable)")
 
     try:
         bundle = load_bundle(
@@ -101,6 +133,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.engine = None
     app.state.cache.clear()
+    app.state.explanation_cache.clear()
+    if app.state.llm_client is not None:
+        await app.state.llm_client.aclose()
+        app.state.llm_client = None
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

@@ -52,6 +52,60 @@ class Settings(BaseSettings):
     #: Maximum number of cached snippet results held in process.
     cache_max_entries: int = 50_000
 
+    # --- LLM explanations (POST /v1/explain) -------------------------------
+    #
+    # Ollama and Groq both speak the OpenAI chat-completions wire format, so
+    # one client covers both and switching providers is three env vars, not a
+    # code change:
+    #
+    #   local (Ollama):  DP_LLM_BASE_URL=http://localhost:11434/v1
+    #                    DP_LLM_MODEL=<your local model tag>
+    #                    DP_LLM_API_KEY=ollama          (ignored, must be non-empty)
+    #
+    #   demo (Groq):     DP_LLM_BASE_URL=https://api.groq.com/openai/v1
+    #                    DP_LLM_MODEL=<a groq-hosted model>
+    #                    DP_LLM_API_KEY=<real key>
+    #
+    # The key is read from the environment on the *server* and never leaves it.
+    # It must never be placed in the extension bundle, which is world-readable
+    # to anyone who installs it -- this is why explanations are a backend
+    # endpoint rather than a direct call from the side panel.
+
+    #: Master switch. When false, /v1/explain returns 503 with a clear reason
+    #: instead of half-working -- the extension disables its own control on
+    #: that signal rather than offering a button that always errors.
+    llm_enabled: bool = False
+
+    #: OpenAI-compatible base URL, including the version path segment.
+    llm_base_url: str = "http://localhost:11434/v1"
+
+    #: Model identifier as the provider names it. Defaulted to the local
+    #: Ollama tag this was developed against; `ollama list` is the authority
+    #: on what your install actually has.
+    llm_model: str = "gemma4:31b-cloud"
+
+    #: Sent as `Authorization: Bearer`. Ollama ignores the value but some
+    #: clients require the header to be present at all.
+    llm_api_key: str = "ollama"
+
+    #: Per-request timeout in seconds. A local model on CPU is genuinely slow;
+    #: this is deliberately generous, and the UI shows a pending state rather
+    #: than blocking anything else.
+    llm_timeout: float = 90.0
+
+    #: Upper bound on generated length. Explanations are a short paragraph;
+    #: this is a cost and latency guard, not a quality knob.
+    llm_max_tokens: int = 400
+
+    #: Low but not zero -- explanations read as stilted at 0.0 and start
+    #: inventing specifics above ~0.5.
+    llm_temperature: float = 0.2
+
+    #: Cached explanations held in process. Far smaller than the prediction
+    #: cache: explanations are only generated for findings a user actually
+    #: clicked, which is a tiny fraction of classified snippets.
+    llm_cache_max_entries: int = 2_000
+
     # --- deferred, declared so the env contract does not change later ------
 
     #: Stage 2 hardening. When None (the default) the in-process cache is used.

@@ -12,9 +12,12 @@ import type {
   ClassifyItemResult,
   ClassifyProgressMessage,
   ClassifyResultMessage,
+  ContextReply,
   ExportTraceMessage,
+  GetContextMessage,
   ScrollToMessage,
 } from "../lib/messaging";
+import { MAX_CONTEXT_CHARS, MAX_CONTEXT_SNIPPETS } from "../lib/api/explain";
 import { recordObservation, isAnimated } from "../lib/timer-tracker";
 import { mountOverlay, scrollAndHighlight } from "../ui/overlay";
 import { resolveOccurrence, type ResolveDiagnostic } from "../lib/resolve";
@@ -222,6 +225,74 @@ export default defineContentScript({
 
     (window as unknown as Record<string, unknown>).__dpTrace = trace;
     (window as unknown as Record<string, unknown>).__dpExportTrace = () => exportTrace(trace);
+
+    /**
+     * Extracted candidates sitting near `selector` in the DOM, for use as
+     * context in an LLM explanation.
+     *
+     * "Near" is defined structurally, not by text similarity: walk up from the
+     * target until an ancestor contains a few other registered candidates,
+     * then return those. That ancestor is in practice the product card, price
+     * block or modal the finding belongs to -- which is exactly the context
+     * that makes a finding interpretable ("this countdown sits next to a
+     * discounted price and an add-to-cart button") and that the text alone
+     * cannot supply.
+     *
+     * Returns page-authored text. Everything here is untrusted input; the
+     * backend fences it and instructs the model to treat it as data (see
+     * services/explain.py).
+     */
+    function collectContext(selector: string): ContextReply["context"] {
+      let target: Element | null = null;
+      try {
+        target = document.querySelector(selector);
+      } catch {
+        target = null;
+      }
+      if (!target) return [];
+
+      // Registered candidates that are still attached, excluding the target.
+      const live: Array<{ id: string; el: Element }> = [];
+      for (const [id, el] of elementRegistry) {
+        if (el === target || !el.isConnected) continue;
+        live.push({ id, el });
+      }
+
+      // Climb until the ancestor holds a useful number of neighbours, bounded
+      // so a page with shallow markup doesn't end up handing back the whole
+      // <body> (which would be "context" in name only).
+      let container: Element | null = target.parentElement;
+      let neighbours: Array<{ id: string; el: Element }> = [];
+      for (let depth = 0; depth < 5 && container; depth += 1) {
+        const inside = live.filter(({ el }) => container!.contains(el));
+        if (inside.length >= 3 || depth === 4) {
+          neighbours = inside;
+          break;
+        }
+        neighbours = inside;
+        container = container.parentElement;
+      }
+
+      return neighbours
+        .sort((a, b) => {
+          // Document order, so the model reads the block roughly as a user
+          // would rather than in registry-insertion order.
+          const position = a.el.compareDocumentPosition(b.el);
+          if (position & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+          if (position & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+          return 0;
+        })
+        .slice(0, MAX_CONTEXT_SNIPPETS)
+        .map(({ id }) => {
+          const entry = trace.get(id);
+          return {
+            text: (entry?.text ?? "").slice(0, MAX_CONTEXT_CHARS),
+            tag: entry?.tag ?? "span",
+            role: entry?.role ?? "none",
+          };
+        })
+        .filter((c) => c.text.length > 0);
+    }
 
     let debounceHandle: ReturnType<typeof setTimeout> | null = null;
     let lastExtractionAt = 0;
@@ -445,7 +516,22 @@ export default defineContentScript({
     // until the whole page's batches finish -- see background.ts's
     // persistProgress for why).
     chrome.runtime.onMessage.addListener(
-      (message: ScrollToMessage | ClassifyProgressMessage | ExportTraceMessage) => {
+      (
+        message:
+          | ScrollToMessage
+          | ClassifyProgressMessage
+          | ExportTraceMessage
+          | GetContextMessage,
+        _sender,
+        sendResponse,
+      ) => {
+        if (message.type === "dp/get-context") {
+          // Synchronous: collectContext only reads the DOM and the local
+          // registry, so this returns false (channel closed immediately)
+          // rather than holding the port open for nothing.
+          sendResponse({ context: collectContext(message.selector) } satisfies ContextReply);
+          return false;
+        }
         if (message.type === "dp/scroll-to") {
           scrollAndHighlight(message.selector);
         } else if (message.type === "dp/export-trace") {

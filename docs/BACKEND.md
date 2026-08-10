@@ -173,6 +173,43 @@ quantization. That question is closed.
 
 ---
 
+## POST /v1/explain — LLM explanations
+
+Optional, off by default (`DP_LLM_ENABLED`). Turns one **already-made** finding into
+a short plain-language explanation. It cannot change a label, a score or the page
+score — there is no path from its response back into the pipeline, deliberately: the
+fine-tuned classifier stays the source of truth for *what* was detected, and the LLM
+is a presentation layer over *why it matters*.
+
+**One client, two providers.** Ollama (local development) and Groq (hosted demos)
+both speak the OpenAI chat-completions format, so switching is three env vars rather
+than a second code path. The API key is read on the server and never enters the
+extension bundle, which is world-readable to anyone who installs it. That is the
+reason this is a backend endpoint at all.
+
+**On demand, never batched.** One call when a user expands a finding in the side
+panel, cached afterwards. Generating explanations at scan time would multiply a page
+that already takes 40–80s at 600 candidates, to produce text almost nobody reads.
+
+**Page text is untrusted.** Everything in the request was scraped from a third-party
+page, which may contain text written to look like instructions. Page-derived values
+are fenced into delimited blocks the system prompt names as untrusted, and
+fence-breaking sequences are neutralised before interpolation. This is a mitigation,
+not a solved problem — see `services/explain.py`.
+
+**Wording discipline is enforced twice**: once in the system prompt, and once by
+rejecting generated text containing legal-claim language (`illegal`, `fraud`,
+`violation`, …). A prompt is a request, not a guarantee, and the project's framing
+depends on never making that claim. A rejected generation returns 502 and the UI
+falls back to the static description, which is always safe.
+
+**Privacy note:** whether page content leaves the machine depends entirely on the
+configured provider. Groq is remote by definition, and some Ollama model tags
+(anything ending `-cloud`) are proxied to ollama.com rather than run locally —
+check `ollama list` output for a `remote_host` before assuming local inference.
+
+---
+
 ## Deployment notes
 
 One uvicorn worker. Each worker loads its own ~951 MB fp32 graph, so workers
