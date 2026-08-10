@@ -207,6 +207,49 @@ per-language breakdown — **twice**: model alone, and model plus the rule layer
 actually ships. The difference between them is the rule ablation that
 `docs/STAGES.md` asks for.
 
+### 5. Where the output lives
+
+Nothing is written to a dashboard; everything is files and console output.
+
+| What | Where | Contents |
+|---|---|---|
+| The labelled set | `data/gold/gold.csv` | your annotations, one row per snippet |
+| Per-row errors | `data/gold/errors.csv` | every FP and FN, with an empty `error_category` to fill in |
+| The scores | stdout from `make gold-eval` | per-class P/R/F1, macro-F1, per-language, rule ablation |
+| The write-up | `docs/RESULTS.md` §6 and §7 | the numbers turned into prose, with caveats |
+
+`make gold-eval` prints and does not save its tables, so capture them if you want a
+record:
+
+```bash
+make gold-eval | tee data/gold/eval-$(date +%F).txt
+```
+
+`docs/RESULTS.md` is the deliverable. The CSVs are working files; the write-up is what
+a supervisor reads, and it is where the numbers have to be stated with their
+limitations attached.
+
+### A note on the committed `gold.csv`
+
+The set currently in `data/gold/` was **annotated by an LLM**, not a human, because
+annotation time was unavailable. It is a **silver set** and `docs/RESULTS.md` §6 says
+so prominently. If you replace it with human labels, that section's health warning
+should come out and the numbers should be re-run — a human-labelled set of even 100
+rows is worth more than the 400 in there now.
+
+### Re-running after changing a rule
+
+`gold_eval` re-runs the **model** over your texts, but the `rule_hits` column is
+whatever the extension recorded when the page was captured. After changing a rule,
+that column is stale.
+
+For a pure text-pattern rule you can re-derive the column offline. For a rule that
+inspects live DOM — `prechecked_optin`, `hidden_optout`, `cta_asymmetry` — you must
+**re-capture the pages**, because checkbox state and computed contrast do not survive
+into the trace.
+
+---
+
 The model is re-run over the gold texts rather than reusing the `model_labels`
 recorded at capture time, because those came from whatever bundle and thresholds were
 live when the page was scanned. Scoring against them would quietly measure a past

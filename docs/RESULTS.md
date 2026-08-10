@@ -504,6 +504,17 @@ Two changes, in `frontend/src/lib/rules/`:
 
 Re-running `make gold-eval` against the same 400 labels:
 
+> **How the re-measurement was done, precisely.** The `rule_hits` column is recorded
+> by the live extension at capture time, so it reflects whichever rules were loaded in
+> the browser then. Rather than re-capturing all five pages, the column was
+> re-derived offline by applying the corrected patterns to each row's text in Python.
+>
+> That is sound for these two rules because both are pure text patterns, but it would
+> **not** be sound for rules needing live DOM (`prechecked_optin`, `hidden_optout`,
+> `cta_asymmetry` read checkbox state, computed contrast and bounding boxes). Changing
+> one of those requires re-capturing the pages, not re-deriving. Stated here because
+> the distinction is invisible in the resulting numbers.
+
 | | before | after |
 |---|---:|---:|
 | macro-F1, model + rules (supported classes) | 0.260 | **0.717** |
