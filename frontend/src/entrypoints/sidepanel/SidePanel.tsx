@@ -6,6 +6,7 @@ import {
   type ContextReply,
   type ExplainReply,
   type StoredFindings,
+  type UploadTraceNowReply,
   type ClassifyItemResult,
 } from "../../lib/messaging";
 import { scoreBand, type MergedFinding } from "../../lib/merge";
@@ -42,6 +43,9 @@ export function SidePanel() {
    * single candidate can carry more than one label, and each is its own
    * explanation. */
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [archiveState, setArchiveState] = useState<
+    { status: "idle" } | { status: "saving" } | { status: "done" | "error"; message: string }
+  >({ status: "idle" });
 
   // Track the active tab so the panel follows the user between tabs rather
   // than freezing on whichever tab was active when it first opened.
@@ -123,6 +127,12 @@ export function SidePanel() {
     return storedRaw;
   }, [storedRaw, tabUrl]);
 
+  useEffect(() => {
+    // A "Saved" message from the previous page would otherwise sit there
+    // reading as though it described the page now in front of the user.
+    setArchiveState({ status: "idle" });
+  }, [tabUrl]);
+
   const grouped = useMemo(() => {
     const map = new Map<Label, ClassifyItemResult[]>();
     for (const item of stored?.items ?? []) {
@@ -139,6 +149,28 @@ export function SidePanel() {
   function handleScrollTo(selector: string) {
     if (tabId === null) return;
     chrome.tabs.sendMessage(tabId, { type: "dp/scroll-to", selector });
+  }
+
+  async function handleArchiveScan() {
+    if (tabId === null) return;
+    setArchiveState({ status: "saving" });
+    try {
+      // The content script owns the trace, so the trigger goes there; it hands
+      // the payload to the background worker, which is the only surface that
+      // talks to the backend.
+      const reply = (await chrome.tabs.sendMessage(tabId, {
+        type: "dp/upload-trace-now",
+      })) as UploadTraceNowReply | undefined;
+      setArchiveState({
+        status: reply?.ok ? "done" : "error",
+        message: reply?.message ?? "No response from the page.",
+      });
+    } catch {
+      setArchiveState({
+        status: "error",
+        message: "Couldn't reach this tab. Reload the page and try again.",
+      });
+    }
   }
 
   async function handleSettingChange(patch: Partial<Settings>) {
@@ -194,6 +226,7 @@ export function SidePanel() {
             Chrome controls which side this panel appears on -- use the panel's
             own menu in Chrome to move it. An extension can't set that.
           </p>
+
         </div>
       )}
 
@@ -214,6 +247,30 @@ export function SidePanel() {
       {grouped.size === 0 && stored && (
         <p className="text-xs text-gray-500">Nothing flagged on this page.</p>
       )}
+
+      <div className="border-t pt-3 mb-4">
+        <button
+          type="button"
+          className="w-full border rounded px-2 py-1 text-xs bg-white hover:bg-gray-50 disabled:opacity-50"
+          onClick={handleArchiveScan}
+          disabled={archiveState.status === "saving" || tabId === null}
+        >
+          {archiveState.status === "saving" ? "Saving..." : "Save this scan to the archive"}
+        </button>
+        {/* Said plainly, next to the control that does it: this is the one
+            action that sends page text off the machine, and a user cannot
+            weigh a choice they were not told about. */}
+        <p className="text-[11px] text-gray-500 mt-1">
+          Uploads the text extracted from this page to your backend's MinIO
+          archive, for evaluating detection. Nothing is sent unless you click.
+        </p>
+        {archiveState.status === "done" && (
+          <p className="text-[11px] text-green-700 mt-1">{archiveState.message}</p>
+        )}
+        {archiveState.status === "error" && (
+          <p className="text-[11px] text-red-600 mt-1">{archiveState.message}</p>
+        )}
+      </div>
 
       <div className="space-y-4">
         {[...grouped.entries()].map(([label, items]) => (

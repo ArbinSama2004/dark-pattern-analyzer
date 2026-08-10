@@ -216,6 +216,45 @@ stating plainly in any demo or write-up.
 
 ---
 
+## /v1/traces — trace archive
+
+Optional, off by default (`DP_MINIO_ENABLED`), and reached only from an explicit
+button in the extension ("Save this scan to the archive"). Archives the extension's
+full extraction→classification trace for one page scan: every candidate, its tag/role/selector, whether it was sent to
+the model, and what came back.
+
+**Why archive at all.** Gaps in this project keep being found the same way — a rule
+that never fires on real phrasing (`stock_counter` vs "N+ bought in past month"), a
+role misinferred on a real layout. Each time, investigating meant re-finding the page
+and re-scanning it. An archive turns that into a query.
+
+**Two stores, on purpose.** The trace itself goes to MinIO (S3-compatible, so the
+same code addresses real S3). A small SQLite table alongside indexes host, URL, time,
+counts, page score and labels. Object storage answers "give me this key" and "list
+this prefix" and nothing else — "which Daraz captures contain a scarcity finding" is
+a content question, and answering it from S3 alone means downloading every object.
+The index is derived data: losing it costs a rebuild from the bucket, not the traces.
+
+**Key layout** is `traces/<host>/<YYYY>/<MM>/<DD>/<scan-id>.json`. Host leads because
+prefix listing is the only cheap S3 query and the questions asked here are per-site
+far more often than per-day. The scan id is stable per page load, so a scan that
+settles, resolves more candidates, then settles again *replaces* its earlier, less
+complete capture instead of storing two.
+
+**Write ordering**: object first, index second. A crash between them leaves an object
+with no index row — invisible to queries, recoverable by re-reading the bucket. The
+other order leaves an index row pointing at nothing, which looks like data until you
+open it.
+
+**Privacy.** A trace is real text from the page the user is looking at, including
+pages they were signed in to. There is deliberately no automatic upload path and no
+persistent "always archive" setting: every capture is one button press, so consent is
+given per page rather than once and then forgotten. The extension states the
+consequence in plain words next to the button, and non-http(s) URLs are rejected
+outright so `file://` paths never enter the archive.
+
+---
+
 ## Deployment notes
 
 One uvicorn worker. Each worker loads its own ~951 MB fp32 graph, so workers

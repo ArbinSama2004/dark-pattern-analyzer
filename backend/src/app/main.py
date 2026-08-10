@@ -33,6 +33,8 @@ from app.core.logging import configure_logging
 from app.services.cache import PredictionCache
 from app.services.inference import InferenceEngine
 from app.services.llm import ChatClient, LLMConfig
+from app.services.object_store import ObjectStore, ObjectStoreConfig
+from app.services.trace_index import TraceIndex
 from app.settings import Settings, get_settings
 
 log = logging.getLogger(__name__)
@@ -71,6 +73,33 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         "LLM explanations are not enabled on this server. Set DP_LLM_ENABLED=true "
         "in backend/.env and restart."
     )
+
+    # Trace storage. Like explanations, an optional feature that must not
+    # affect classifier readiness: a MinIO that is down is a reason for
+    # /v1/traces to fail, not for the service to stop classifying. The client
+    # is constructed eagerly but connects lazily, so an unreachable MinIO
+    # surfaces on first upload rather than blocking startup.
+    app.state.object_store = None
+    app.state.trace_index = None
+    if settings.minio_enabled:
+        app.state.object_store = ObjectStore(
+            ObjectStoreConfig(
+                endpoint=settings.minio_endpoint,
+                access_key=settings.minio_access_key,
+                secret_key=settings.minio_secret_key,
+                bucket=settings.minio_bucket,
+                region=settings.minio_region,
+            )
+        )
+        app.state.trace_index = TraceIndex(settings.trace_index_path)
+        log.info(
+            "trace storage enabled: bucket %s at %s (index: %s)",
+            settings.minio_bucket,
+            settings.minio_endpoint,
+            settings.trace_index_path,
+        )
+    else:
+        log.info("trace storage disabled (set DP_MINIO_ENABLED=true to enable)")
 
     if settings.llm_enabled and not settings.llm_api_key.strip():
         app.state.llm_disabled_reason = (

@@ -97,6 +97,20 @@ describe("loadSettings / updateSettings", () => {
     });
   });
 
+  it("carries no setting that could archive page text on its own", async () => {
+    // Archiving is a button, not a preference -- there must be no persisted
+    // flag that keeps uploading page content after being flipped once. This
+    // asserts the absence, so reintroducing such a setting has to be a
+    // deliberate change to this test rather than a quiet addition.
+    const settings = await loadSettings();
+
+    expect(Object.keys(settings).sort()).toEqual([
+      "openSidePanelOnIconClick",
+      "overlayVisible",
+      "scanEnabled",
+    ]);
+  });
+
   it("keeps scanning and overlay visibility independent", async () => {
     // The whole reason these are two settings: turning the overlay off must
     // not stop scanning, and vice versa.

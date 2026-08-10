@@ -2,6 +2,7 @@ import type { Candidate } from "./extract/types";
 import type { RuleHit } from "./rules/types";
 import type { MergedFinding } from "./merge";
 import type { ExplainRequest } from "./api/explain";
+import type { StoreTraceRequest } from "./api/traces";
 
 /** One extracted candidate plus whatever the local rule engine already
  * found for it -- sent content.ts -> background.ts so the merge policy
@@ -109,13 +110,45 @@ export type ExplainReply =
   | { ok: true; explanation: string; model: string; cached: boolean }
   | { ok: false; error: string; retryable: boolean };
 
+/** Sent content.ts -> background.ts to archive a settled page scan. Routed
+ * through the background worker for the same reason classify and explain are:
+ * one place holds the API base URL, and the content script never talks to the
+ * backend directly. */
+export interface UploadTraceMessage {
+  type: "dp/upload-trace";
+  request: StoreTraceRequest;
+}
+
+/** Sent side panel/popup -> content.ts to archive the current page's trace
+ * right now. The content script owns the trace, so the trigger has to reach
+ * it; it then hands the payload to the background worker, which is the only
+ * place that talks to the backend.
+ *
+ * There is deliberately no automatic counterpart. A trace is real text from
+ * the page in front of the user, so each capture is its own decision rather
+ * than something a once-flipped setting keeps doing silently. */
+export interface UploadTraceNowMessage {
+  type: "dp/upload-trace-now";
+}
+
+export interface UploadTraceNowReply {
+  ok: boolean;
+  message: string;
+}
+
+export type UploadTraceReply =
+  | { ok: true; objectKey: string; replaced: boolean }
+  | { ok: false; error: string };
+
 export type ExtensionMessage =
   | ClassifyCandidatesMessage
   | ClassifyProgressMessage
   | ScrollToMessage
   | ExportTraceMessage
   | ExplainMessage
-  | GetContextMessage;
+  | GetContextMessage
+  | UploadTraceMessage
+  | UploadTraceNowMessage;
 
 /** chrome.storage.session key holding the latest findings for a tab, so the
  * popup and side panel (which don't share a direct message channel with the

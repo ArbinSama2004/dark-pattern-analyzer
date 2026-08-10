@@ -99,6 +99,45 @@ class Settings(BaseSettings):
     #: clicked, which is a tiny fraction of classified snippets.
     llm_cache_max_entries: int = 2_000
 
+    # --- trace storage (POST /v1/traces) -----------------------------------
+    #
+    # Archives the extension's full extraction->classification trace per page
+    # scan, so gaps found later (a rule that never fires on real phrasing, a
+    # role misinference) can be investigated against real captures instead of
+    # needing the page to be re-found and re-scanned.
+    #
+    # Objects go to MinIO (S3-compatible); a small SQLite index alongside makes
+    # them queryable by host/label/date. Object storage alone cannot answer
+    # "which Daraz scans had scarcity findings" without downloading everything,
+    # which is why the index exists rather than a key convention alone.
+    #
+    # PRIVACY: a trace contains real text from pages the user visited. This is
+    # off by default and gated a second time by an opt-in setting in the
+    # extension -- both must be on before anything is stored.
+
+    #: Master switch. When false, /v1/traces returns 503 and stores nothing.
+    minio_enabled: bool = False
+
+    #: S3 API endpoint. The MinIO console (:9001) is a different port and will
+    #: not work here.
+    minio_endpoint: str = "http://localhost:9000"
+
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin"
+
+    #: Created on first use if absent.
+    minio_bucket: str = "dp-traces"
+
+    #: Region name. MinIO ignores it, but boto3 requires one to sign requests.
+    minio_region: str = "us-east-1"
+
+    #: SQLite index of stored traces. Relative paths resolve from backend/.
+    trace_index_path: Path = Path("./trace_index.db")
+
+    #: Reject payloads larger than this (bytes). A trace of a large page is
+    #: ~1-2 MB; this is a guard against an unbounded body, not a tuning knob.
+    trace_max_bytes: int = 32 * 1024 * 1024
+
     # --- deferred, declared so the env contract does not change later ------
 
     #: Stage 2 hardening. When None (the default) the in-process cache is used.

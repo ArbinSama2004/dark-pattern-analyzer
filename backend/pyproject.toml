@@ -18,8 +18,11 @@ dependencies = [
     "tokenizers>=0.19",
     "numpy>=1.26",
     # Runtime, not just test: services/llm.py calls the configured
-    # OpenAI-compatible provider (Ollama locally, Groq for demos) over HTTP.
+    # OpenAI-compatible provider (Groq) over HTTP.
     "httpx>=0.27",
+    # S3 API for trace storage (MinIO in development). boto3 rather than the
+    # minio client so the same code addresses any S3-compatible store.
+    "boto3>=1.35",
 ]
 
 [project.optional-dependencies]

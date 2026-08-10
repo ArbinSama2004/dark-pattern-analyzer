@@ -1,0 +1,37 @@
+# MinIO for trace storage (see docs/BACKEND.md, "Trace storage").
+#
+# Only MinIO lives here. The backend is deliberately NOT in this file: it needs
+# the ~951 MB ONNX bundle mounted from ml/artifacts/, and running it under
+# compose would either bake that into an image or add a mount that has to stay
+# in step with DP_MODEL_DIR. Running the backend with uvicorn directly (as
+# docs/SETUP.md describes) keeps one way of doing it rather than two.
+#
+#   docker compose up -d minio
+#   console at http://localhost:9001  (login with the credentials below)
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: dp-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000" # S3 API -- DP_MINIO_ENDPOINT points here
+      - "9001:9001" # web console, humans only
+    environment:
+      # Development credentials. These are not secrets: this compose file is
+      # committed, and the service is bound to localhost. A deployment with
+      # real traces in it must set its own via the environment and must not
+      # reuse these.
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      # Probes readiness to serve, not just that the process is alive -- the
+      # backend's first upload otherwise races container startup.
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  minio-data:

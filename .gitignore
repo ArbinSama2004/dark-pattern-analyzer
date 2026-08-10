@@ -47,3 +47,10 @@ Thumbs.db
 .idea/
 
 HANDOFF_FRONTEND_DEBUG.md
+
+# Trace index (derived data -- rebuildable from the MinIO bucket, and it
+# contains URLs of pages actually visited).
+trace_index.db
+trace_index.db-wal
+trace_index.db-shm
+

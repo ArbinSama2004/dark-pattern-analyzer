@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { findingsStorageKey, stripFragment, type StoredFindings } from "../../lib/messaging";
+import {
+  findingsStorageKey,
+  stripFragment,
+  type StoredFindings,
+  type UploadTraceNowReply,
+} from "../../lib/messaging";
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -24,6 +29,10 @@ export function Popup() {
    * the comment there for why that matters. */
   const [windowId, setWindowId] = useState<number | null>(null);
   const [exportStatus, setExportStatus] = useState<"idle" | "sent" | "error">("idle");
+  const [archiveStatus, setArchiveStatus] = useState<"idle" | "saving" | "done" | "error">(
+    "idle",
+  );
+  const [archiveMessage, setArchiveMessage] = useState<string>("");
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +95,24 @@ export function Popup() {
     // resolved ahead of time in the load effect rather than looked up here.
     // Deliberately not awaited: this handler has to stay synchronous.
     void chrome.sidePanel.open({ windowId });
+  }
+
+  /** Archives this page's extracted JSON to MinIO. Only ever runs from this
+   * click -- there is no automatic path, by design (see settings.ts). */
+  async function handleArchiveScan() {
+    if (tabId === null) return;
+    setArchiveStatus("saving");
+    setArchiveMessage("");
+    try {
+      const reply = (await chrome.tabs.sendMessage(tabId, {
+        type: "dp/upload-trace-now",
+      })) as UploadTraceNowReply | undefined;
+      setArchiveStatus(reply?.ok ? "done" : "error");
+      setArchiveMessage(reply?.message ?? "No response from the page.");
+    } catch {
+      setArchiveStatus("error");
+      setArchiveMessage("Couldn't reach this tab. Reload the page and try again.");
+    }
   }
 
   /**
@@ -190,6 +217,7 @@ export function Popup() {
           Chrome controls which side the panel appears on. To move it left, use
           the panel's own menu in Chrome -- an extension can't set this.
         </p>
+
       </div>
 
       <p className="text-xs text-gray-400 mt-3">
@@ -198,6 +226,24 @@ export function Popup() {
       </p>
 
       <div className="mt-3 border-t pt-3">
+        <button
+          type="button"
+          className="w-full border rounded px-2 py-1 text-xs bg-white hover:bg-gray-50 disabled:opacity-50 mb-2"
+          onClick={handleArchiveScan}
+          disabled={archiveStatus === "saving" || tabId === null}
+        >
+          {archiveStatus === "saving" ? "Saving..." : "Save this scan to the archive"}
+        </button>
+        {archiveMessage && (
+          <p
+            className={`text-[11px] mb-2 ${
+              archiveStatus === "error" ? "text-red-600" : "text-green-700"
+            }`}
+          >
+            {archiveMessage}
+          </p>
+        )}
+
         <button
           type="button"
           className="text-xs underline text-gray-500 hover:text-gray-700"

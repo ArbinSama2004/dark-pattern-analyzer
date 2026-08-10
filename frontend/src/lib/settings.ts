@@ -32,6 +32,12 @@ export interface Settings {
   openSidePanelOnIconClick: boolean;
 }
 
+// There is deliberately no "upload traces" setting here. Archiving a scan
+// sends real text from the page in front of the user, and that is a decision
+// worth making per capture rather than once, in a settings panel, and then
+// forgetting. It is a button in the side panel and the popup instead -- see
+// UploadTraceNowMessage in messaging.ts.
+
 export const DEFAULT_SETTINGS: Settings = {
   scanEnabled: true,
   overlayVisible: true,

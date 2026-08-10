@@ -23,8 +23,29 @@ export default defineConfig({
     // See: https://developer.chrome.com/docs/extensions/develop/concepts/
     //      match-patterns#special
     host_permissions: ["http://localhost/*", "*://*/*"],
+    // A shield (the extension protects you from manipulation) carrying a
+    // warning mark (it flags, it does not block). Deliberately not an eye or a
+    // magnifying glass: an eye reads as surveillance, which is the opposite of
+    // what this does, and a lens turns to mush at 16px.
+    //
+    // Generated from a 1024px master and downsampled, so the shield's diagonal
+    // edges stay clean at toolbar size. Source parameters are in the commit
+    // that added these files; re-render rather than hand-editing a PNG.
+    icons: {
+      16: "icon/16.png",
+      32: "icon/32.png",
+      48: "icon/48.png",
+      96: "icon/96.png",
+      128: "icon/128.png",
+    },
     action: {
       default_title: "Dark Pattern Analyzer",
+      default_icon: {
+        16: "icon/16.png",
+        32: "icon/32.png",
+        48: "icon/48.png",
+        128: "icon/128.png",
+      },
     },
     side_panel: {
       default_path: "sidepanel.html",

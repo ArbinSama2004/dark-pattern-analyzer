@@ -10,6 +10,7 @@
  */
 import { createClassifyClient, type SnippetResult } from "../lib/api/classify";
 import { createExplainClient, ExplainApiError } from "../lib/api/explain";
+import { createTraceClient, TraceApiError } from "../lib/api/traces";
 import { mergeFindings, computePageScore } from "../lib/merge";
 import { modelCacheKey } from "../lib/hash";
 import type { CandidateWithHits } from "../lib/messaging";
@@ -35,6 +36,7 @@ const API_BASE_URL = "http://localhost:8000";
 
 const client = createClassifyClient({ baseUrl: API_BASE_URL });
 const explainClient = createExplainClient({ baseUrl: API_BASE_URL });
+const traceClient = createTraceClient({ baseUrl: API_BASE_URL });
 
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
   let attempt = 0;
@@ -355,6 +357,35 @@ export default defineBackground(() => {
       if (message.type === "dp/get-tab-id") {
         sendResponse({ tabId: sender.tab?.id ?? null });
         return false;
+      }
+
+      if (message.type === "dp/upload-trace") {
+        // No gate here: this message only exists as the result of a user
+        // pressing "Save scan to archive", so the click *is* the
+        // authorisation. A second check against a stored flag would be
+        // checking something the user did not set.
+        void (async () => {
+          try {
+            const response = await traceClient.store(message.request);
+            console.log(
+              `[dark-pattern-analyzer] archived trace -> ${response.object_key}` +
+                (response.replaced ? " (replaced earlier capture)" : ""),
+            );
+            sendResponse({
+              ok: true,
+              objectKey: response.object_key,
+              replaced: response.replaced,
+            });
+          } catch (err: unknown) {
+            const message_ =
+              err instanceof TraceApiError
+                ? err.message
+                : `Could not reach the backend at ${API_BASE_URL}.`;
+            console.warn("[dark-pattern-analyzer] trace upload failed:", message_);
+            sendResponse({ ok: false, error: message_ });
+          }
+        })();
+        return true;
       }
 
       if (message.type === "dp/explain") {
