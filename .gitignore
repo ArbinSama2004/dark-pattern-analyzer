@@ -54,3 +54,6 @@ trace_index.db
 trace_index.db-wal
 trace_index.db-shm
 
+
+# Traces fetched from MinIO for annotation (page content from real browsing).
+traces/

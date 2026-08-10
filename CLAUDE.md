@@ -18,7 +18,7 @@ bundle in `ml/artifacts/model_v1/`. Keep it that way.
 `make help` lists everything. The ones that matter:
 
 ```bash
-make test          # backend (200) + frontend (171). ml/ has no unit tests by design
+make test          # backend (200) + frontend (180). ml/ has no unit tests by design
 make lint          # ruff on ml + backend, tsc on frontend
 make dev           # backend API on :8000
 make ext           # extension dev build
@@ -87,8 +87,14 @@ the same way.
 - **Measure before patching.** Two ONNX export patches were made on plausible
   reasoning before measuring; both hypotheses were wrong. This repo has a history
   of confident guesses being incorrect — get a real trace or a real number first.
-  `make bench`, `make parity`, and the extension's "Download debug trace" button
-  exist for this.
+  `make bench`, `make parity`, `make gold-eval`, and the extension's "Download
+  debug trace" button exist for this.
+- **A rule can be confidently, consistently wrong and pass every test.**
+  `stock_counter` matched `"N sold"` as scarcity while `docs/ANNOTATION.md` calls a
+  settled sale count benign. Unit tests passed throughout and synthetic metrics
+  could not see it; only real pages exposed it, at 44% of all false positives.
+  When changing rules, check them against the annotation guide, not just the
+  tests.
 - **Give a decision with the reason, not a menu of options.**
 - **Do not add scope that was not asked for.**
 - **Say what is unverified.** Several docs previously carried stale "verified"
@@ -99,15 +105,19 @@ the same way.
 
 ## Current state
 
-All four stages delivered except the gold set. **Every accuracy number in this
-repository is measured on synthetic data the project generated itself.** The
-tooling to fix that exists (`make gold-candidates`, `make gold-eval`); the
-annotation is outstanding human work. Do not describe the tool's real-world
-accuracy as known.
+All four stages delivered. A 400-snippet real-site evaluation exists, but its
+labels were produced by an LLM against `docs/ANNOTATION.md` — a **silver set,
+not a gold set**. Real-site figures are preliminary; say so when quoting them. A
+human-labelled subset is the highest-value outstanding task.
+
+Measured on that set: macro-F1 **0.394** model-only, **0.717** for the shipped
+hybrid, over the 4 of 7 classes that occur in real Daraz pages. Synthetic is
+0.9019. Nepali is **unevaluated on real pages** (3 of 400 rows) — the
+multilingual claim rests on synthetic data alone.
 
 Also outstanding: inference is ~16x its latency budget (620 ms per batch of 32,
-`docs/RESULTS.md` §5) — this is arithmetic, not a bug, and a smaller base model is
-the only thing likely to move it materially.
+`docs/RESULTS.md` §5) — arithmetic, not a bug; a smaller base model is the only
+thing likely to move it materially.
 
 ## Where things are
 
@@ -117,5 +127,5 @@ the only thing likely to move it materially.
 | `docs/PROGRESS.md` | what was done and why, including what went wrong |
 | `docs/ARCHITECTURE.md` | system design and API contract |
 | `docs/BACKEND.md` | serving design, invariants, `/v1/explain`, `/v1/traces` |
-| `docs/ANNOTATION.md` | labelling rules and the gold-set procedure |
+| `docs/ANNOTATION.md` | labelling rules and the gold/silver-set procedure |
 | `docs/model_card.md` | model card, limitations |

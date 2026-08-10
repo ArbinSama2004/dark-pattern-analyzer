@@ -1,0 +1,54 @@
+kind,label,text,lang,role,gold_labels,predicted_labels,rule_hits,error_category,host
+false_positive,sneaking,Gems save Rs. 48,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 19,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 20,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,50% Off Gems save Rs. 41,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 11,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,11% Off Gems save Rs. 48,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,34% Off Gems save Rs. 13,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,50% Off Gems save Rs. 28,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 59,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,52% Off Gems save Rs. 17,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 76,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 10,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,33% Off Gems save Rs. 10,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,49% Off Gems save Rs. 76,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 17,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,39% Off Gems save Rs. 76,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,22% Off Gems save Rs. 20,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 28,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 25,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 13,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 23,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 92,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,28% Off Gems save Rs. 18,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 41,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,40% Off Gems save Rs. 9,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 86,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,confirmshaming,If I order today when can you deliver it tomorrow at Thankot?,en,body,benign,confirmshaming,,,www.daraz.com.np
+false_positive,sneaking,33% Off Gems save Rs. 30,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,26% Off Gems save Rs. 19,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,forced_action,New Arrival Mall Flash Sale Free Delivery Buy More Save More Choice Any 3 Gems Fast Delivery,en,cta,benign,forced_action,,,www.daraz.com.np
+false_positive,sneaking,21% Off Gems save Rs. 92,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,36% Off Gems save Rs. 23,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,false_urgency,-24%,en,promo,benign,false_urgency,discount_badge,,www.daraz.com.np
+false_positive,sneaking,50% Off Gems save Rs. 10,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,35% Off Gems save Rs. 11,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,48% Off Gems save Rs. 28,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,24% Off Gems save Rs. 11,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 9,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,10% Off Gems save Rs. 19,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 181,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,43% Off Gems save Rs. 86,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,confirmshaming,⚡ Mega Sale is LIVE -- prices this low won't be back. Shop now before it ends!,en,body,false_urgency,confirmshaming,,,darkpattern-shop-frontend-rho.vercel.app
+false_negative,false_urgency,⚡ Mega Sale is LIVE -- prices this low won't be back. Shop now before it ends!,en,body,false_urgency,confirmshaming,,,darkpattern-shop-frontend-rho.vercel.app
+false_negative,forced_action,Sign up to reveal price,en,body,forced_action,benign,,,darkpattern-shop-frontend-rho.vercel.app
+false_positive,sneaking,10% Off Gems save Rs. 59,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,33% Off Gems save Rs. 19,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,10% Off Gems save Rs. 13,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 30,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,37% Off Gems save Rs. 30,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 221,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,Gems save Rs. 18,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_positive,sneaking,41% Off Gems save Rs. 9,en,fine_print,benign,sneaking,,,www.daraz.com.np
+false_negative,false_urgency,Ends in days,en,timer,false_urgency,benign,,,www.daraz.com.np

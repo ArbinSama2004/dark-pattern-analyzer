@@ -85,12 +85,20 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 | **3** | Chrome extension: extraction, rules, overlay, side panel | **delivered**, verified on live Amazon and Daraz pages |
 | **4** | Real-site gold set, evaluation, write-up | **partly done** — see below |
 
-**Stage 4, honestly.** Latency is measured, the gold-set and rule-ablation tooling is
-built, and two things beyond the original plan shipped (LLM explanations, the trace
-archive). **The gold set itself is not annotated**, which means every accuracy number
-in this repository is still measured on synthetic data the project generated itself.
-That is the single largest outstanding item, and it is human annotation work rather
-than code — [`docs/ANNOTATION.md`](docs/ANNOTATION.md) has the procedure.
+**Stage 4, honestly.** Latency is measured, the evaluation tooling is built, two
+things beyond the original plan shipped (LLM explanations, the trace archive), and a
+**400-snippet real-site evaluation has been run**.
+
+That evaluation is a **silver set, not a gold set** — the labels were assigned by an
+LLM reading `docs/ANNOTATION.md`, because human annotation time was unavailable. It is
+blinded (model predictions were withheld from the annotator) but it is not independent
+human judgement, and [`docs/RESULTS.md`](docs/RESULTS.md) §6 states exactly what that
+does and does not support. Headline results: macro-F1 drops from **0.90 synthetic to
+0.39 real** for the model alone, and recovers to **0.717** once a defect the
+evaluation exposed in the rule layer was fixed. That defect — one rule contradicting
+the project's own annotation guide — was causing the rule layer to *reduce* real-site
+accuracy; correcting it moved its contribution from **−0.134 to +0.323** macro-F1
+(§7). A human-labelled subset remains the highest-value outstanding task.
 
 Detail, deliverables and exit criteria per stage: [`docs/STAGES.md`](docs/STAGES.md)
 

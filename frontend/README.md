@@ -20,7 +20,7 @@ frontend/
       popup/            # scan/overlay toggles, side-panel preference
     lib/
       extract/          # TreeWalker, shadow DOM, same-origin iframes
-      rules/            # the 10 deterministic detectors
+      rules/            # the 11 deterministic detectors
       api/              # typed clients for classify, explain, traces
       resolve.ts        # prediction -> live DOM element, refusing to guess
       merge.ts          # rule + model merge policy

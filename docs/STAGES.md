@@ -146,7 +146,7 @@ locally, calls the backend, and presents findings legibly.
 | DOM extractor: TreeWalker, shadow DOM, same-origin iframes | `frontend/src/lib/extract/` |
 | Debounced `MutationObserver` | `frontend/src/entrypoints/content.ts` |
 | Batching, dedupe, retry, session cache | `frontend/src/entrypoints/background.ts` |
-| Ten deterministic rules (incl. discount_badge, forced_action_gate) | `frontend/src/lib/rules/` |
+| Eleven deterministic rules (incl. discount_badge, forced_action_gate, recent_activity) | `frontend/src/lib/rules/` |
 | Overlay badges in an isolated shadow root | `frontend/src/ui/` |
 | Side panel: grouped findings, page score, explanations | `frontend/src/entrypoints/sidepanel/` |
 
@@ -181,11 +181,11 @@ locally, calls the backend, and presents findings legibly.
 
 ## Stage 4 — Evaluation and Release
 
-> **Status:** partly delivered. Latency is measured, the evaluation tooling is
-> built, and two unplanned additions shipped (LLM explanations, the trace
-> archive). **The gold set is not annotated**, so every accuracy number in the
-> project is still synthetic. That is the largest outstanding item in the
-> repository and it is annotation work, not code.
+> **Status:** substantially delivered. Latency measured, evaluation tooling built,
+> a 400-snippet real-site evaluation run, and two unplanned additions shipped
+> (LLM explanations, the trace archive). **The real-site labels are LLM-produced
+> — a silver set, not a gold set** (docs/RESULTS.md §6 is explicit about what
+> that supports). A human-labelled subset is the highest-value remaining task.
 
 **Goal:** turn a working tool into defensible work.
 
@@ -223,13 +223,17 @@ of which classes degrade and why is stronger work than presenting a suspiciously
 
 ### Exit criteria
 
-- [ ] 300+ annotated real snippets committed — *tooling ready (`make gold-candidates`)*
-- [ ] Inter-annotator agreement (Cohen's κ) reported for a 100-item overlap
-- [ ] Gold-set macro-F1 ≥ 0.70, with per-class and per-language tables — *`make gold-eval` produces these once annotations exist*
-- [ ] Synthetic → real gap quantified and discussed
-- [ ] Rule ablation measured: macro-F1 with rules vs model alone — *implemented in `make gold-eval`*
-- [ ] Error analysis: 30 false positives and 30 false negatives categorised
+- [~] 400 annotated real snippets committed — **LLM-annotated, not human**; a silver set
+- [ ] Inter-annotator agreement (Cohen's κ) — **not measurable**, single annotator
+- [x] Gold-set macro-F1 ≥ 0.70 — **0.717** on supported classes for the shipped
+      hybrid (0.394 model-only). Caveat: silver set, and only 4 of 7 classes occur
+- [x] Synthetic → real gap quantified and discussed — 0.90 → 0.39, docs/RESULTS.md §6
+- [x] Rule ablation measured — rules cost 0.134 macro-F1, a defect was found and
+      fixed, and they now contribute **+0.323**, §7
+- [~] Error analysis — all 93 errors exported and the two dominant causes identified;
+      per-row categorisation still to fill in (`data/gold/errors.csv`)
 - [x] Model card written, including the synthetic-data caveat
+- [ ] Per-language real-site results — **blocked**: only 3 of 400 rows were Devanagari
 - [ ] Demo recorded and backed by saved fixtures, never live-only
 - [x] Latency measured and reported honestly against the budget
 

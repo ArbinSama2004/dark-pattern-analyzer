@@ -105,6 +105,16 @@ valuable than hiding it.
 
 ## Building the gold set
 
+### 0. If your captures are already in MinIO
+
+```bash
+make gold-fetch                        # everything, into ./traces/
+make gold-fetch HOST=www.daraz.com.np  # one site
+```
+
+Reads the bucket directly rather than the SQLite index, so it still works if the
+index was deleted or the bucket was written by another machine.
+
 ### 1. Capture real pages
 
 Browse the sites you want covered with the extension running, and press **"Save this
@@ -129,6 +139,30 @@ precision but is structurally incapable of finding a false negative.
 
 ### 3. Annotate
 
+#### Quick reference — keep this visible while working
+
+Ask one question per row: **is the pressure manufactured and unverifiable?**
+
+| Type | If the text... | Example |
+|---|---|---|
+| `scarcity` | claims limited stock/availability you cannot verify | "Only 2 left in stock!" |
+| `false_urgency` | sets a deadline that is fabricated or resets | "Offer ends in 09:58" |
+| `social_proof` | cites live activity by others as pressure | "37 people viewing this" |
+| `confirmshaming` | shames or guilts you for declining | "No thanks, I hate saving" |
+| `forced_action` | demands an unrelated action to proceed | "Create an account to view prices" |
+| `obstruction` | makes an action harder than it needs to be | "Cancel by phoning 9-5" |
+| `sneaking` | slips in a charge/opt-in you did not choose | pre-checked insurance |
+| `benign` | **everything else** — and most rows are this | "Returns", "Laptops", "Red" |
+
+Not dark just because it mentions a number, a deadline or a discount. Legitimate
+commerce does all three constantly. A **settled, verifiable total** is benign; a
+**stated real deadline** is benign; an ordinary advertised discount is benign.
+
+Multi-label is allowed and expected: *"Only 3 left — ends in 10:00"* is
+`scarcity false_urgency`.
+
+#### Doing it
+
 Fill the `gold_labels` column. Space-separated labels for a finding
 (`scarcity false_urgency`), or the literal word `benign` for none. Use `notes` for
 anything you were unsure about — those rows are the interesting ones later.
@@ -138,6 +172,20 @@ column for that reason. Reading it first turns the exercise into measuring your
 agreement with the model instead of measuring the model, and the resulting number is
 worthless while looking respectable.
 
+**Sort by `text` before you start.** Real pages repeat the same pattern with only a
+number changing -- "48 sold", "25 sold", "10 sold" -- and sorting groups them so one
+decision fills twenty rows. Row order does not matter to `gold-eval`, which reads each
+row independently.
+
+Hide the `model_labels`, `rule_hits`, `id` and `url` columns while working. They are
+there for later, and `model_labels` in particular will bias you if it stays in view.
+
+**Open it in Google Sheets, or a text editor.** Excel mangles UTF-8 CSV on some
+systems, which silently destroys any Devanagari text, and it likes to autocorrect
+cell contents. If you must use Excel, import explicitly as UTF-8 rather than
+double-clicking the file, and check a Devanagari row still reads correctly before
+committing hours of work.
+
 Save as `data/gold/gold.csv` when done.
 
 ### 4. Score
@@ -145,6 +193,14 @@ Save as `data/gold/gold.csv` when done.
 ```bash
 make gold-eval
 ```
+
+Also writes `data/gold/errors.csv`: every false positive and false negative as its
+own row, with an empty `error_category` column to fill in. That is what the Stage 4
+"categorise 30 FPs and 30 FNs" criterion needs -- aggregate precision tells you how
+many were wrong, never which ones.
+
+Errors are computed against **model + rules**, i.e. what the user actually sees. An
+error the product never surfaces is not worth an annotator's time.
 
 Prints per-class precision/recall/F1, macro-F1 over the seven dark classes, and a
 per-language breakdown — **twice**: model alone, and model plus the rule layer that

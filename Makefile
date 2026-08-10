@@ -122,20 +122,25 @@ model: baseline train thresholds evaluate export parity ## Full Stage 1 model pi
 
 # --- evaluation (Stage 4) --------------------------------------------------
 
+.PHONY: gold-fetch
+gold-fetch: ## Download archived traces from MinIO to ./traces (HOST= to filter)
+	cd backend && uv run python scripts/fetch_traces.py --out ../traces $(if $(HOST),--host $(HOST))
+
 .PHONY: gold-candidates
 gold-candidates: ## Turn archived traces into an annotation-ready CSV (TRACES=path)
 	@test -n "$(TRACES)" || { echo "Usage: make gold-candidates TRACES='path/to/*.json'"; exit 1; }
-	cd backend && uv run python scripts/gold_candidates.py $(TRACES) --out ../data/gold/candidates.csv
+	cd backend && uv run python scripts/gold_candidates.py $(abspath $(TRACES)) --out ../data/gold/candidates.csv
 
 .PHONY: gold-eval
 gold-eval: ## Score the model against the annotated gold set
 	@test -f data/gold/gold.csv || { echo "No data/gold/gold.csv yet. See docs/ANNOTATION.md."; exit 1; }
-	cd backend && uv run python scripts/gold_eval.py ../data/gold/gold.csv
+	cd backend && uv run python scripts/gold_eval.py ../data/gold/gold.csv \
+		--errors ../data/gold/errors.csv
 
 .PHONY: report
 report: ## Markdown report from a trace JSON file (TRACE=path)
 	@test -n "$(TRACE)" || { echo "Usage: make report TRACE=path/to/trace.json"; exit 1; }
-	cd backend && uv run python scripts/trace_report.py $(TRACE)
+	cd backend && uv run python scripts/trace_report.py $(abspath $(TRACE))
 
 .PHONY: bench
 bench: ## Measure real inference latency against the bundle

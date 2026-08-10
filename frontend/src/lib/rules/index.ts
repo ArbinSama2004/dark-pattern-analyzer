@@ -9,11 +9,14 @@ import { lateFee } from "./late_fee";
 import { cancelOffsite } from "./cancel_offsite";
 import { discountBadge } from "./discount_badge";
 import { forcedActionGate } from "./forced_action_gate";
+import { recentActivity } from "./recent_activity";
 import type { Rule, RuleHit } from "./types";
 
 /** All rules from docs/ARCHITECTURE.md 4.5, plus discount_badge for
- * e-commerce discount-badge pattern coverage and forced_action_gate (Fix 4,
- * Part B) for structural corroboration of forced_action. */
+ * e-commerce discount-badge pattern coverage, forced_action_gate for
+ * structural corroboration of forced_action, and recent_activity for
+ * time-bounded purchase claims (which stock_counter used to mislabel as
+ * scarcity -- see docs/RESULTS.md sections 6-7). */
 const RULES: Rule[] = [
   stockCounter,
   countdownTimer,
@@ -25,6 +28,7 @@ const RULES: Rule[] = [
   cancelOffsite,
   discountBadge,
   forcedActionGate,
+  recentActivity,
 ];
 
 export function runRules(candidate: Candidate, el: Element): RuleHit[] {

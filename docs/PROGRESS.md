@@ -310,10 +310,13 @@ number in this project is measured on synthetic data it generated itself.
 
 | Item | Priority | Stage |
 |---|---|---|
-| Real-site gold set not annotated -- the honest evaluation. Tooling exists (`make gold-candidates`, `make gold-eval`); the labelling is outstanding | high | 4 |
+| ~~`stock_counter` contradicted docs/ANNOTATION.md on `"N sold"`~~ -- **fixed**. Rule no longer matches bare sale counts; new `recent_activity` rule covers the recency-bounded phrasing that is genuinely dark. Rule-layer contribution moved from -0.134 to +0.323 macro-F1 | -- | done |
+| `"Gems save Rs. N"` classified `sneaking` -- 46 real-site false positives, model-only. Genuinely arguable; needs a human annotator to settle | medium | 4 |
+| Real-site labels are LLM-produced (silver set). A human-labelled subset, even 100 rows, would materially strengthen every real-site claim | high | 4 |
+| Nepali unevaluated on real pages -- only 3 of 400 sampled rows were Devanagari, none dark. The multilingual claim rests on synthetic data alone | high | 4 |
 | Inference is ~16x the latency budget (620 ms per batch of 32). A smaller base model is the only change likely to move it an order of magnitude | high | 4 |
 | Validation split has 0% multi-label rows while test has 3.2%, distorting tuned thresholds | high | 4 |
-| `"958 sold"` classified as scarcity, though a completed sale count is a settled aggregate by docs/ANNOTATION.md's own test. Suspected systematic false positive; the gold set will confirm or refute it | medium | 4 |
+| ~~`"958 sold"` suspected false positive~~ -- **confirmed**, 39 occurrences in 400 rows. See the contradiction row above | -- | done |
 | MuRIL vocabulary pruning, 197k to about 30k, target roughly 200 MB | medium | 4 |
 | Findings carry `source` but not the *names* of the rules that fired, so `/v1/explain` prompts say "a rule matched" rather than which one | low | any |
 | `GET /v1/rules` deferred by design; trigger (rule updates without rebuilding the extension) has not fired | low | deferred |

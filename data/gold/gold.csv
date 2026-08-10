@@ -1,0 +1,401 @@
+text,lang,role,tag,gold_labels,notes,host,model_labels,rule_hits,id,url
+( 25 ),en,fine_print,span,benign,,www.daraz.com.np,,,9401b488dd85f850f2af38c480c41070386a0fb8,https://www.daraz.com.np/kids-bookcases/
+1 2 3 4 5,en,body,div,benign,,www.daraz.com.np,,,150c5aef3165bdb34a570795f971c25cd374d81d,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Nike,en,body,a,benign,,www.daraz.com.np,,,10d404ddcf570f50fc0b5f26fe81435089987047,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Gandaki Province,en,label,label,benign,,www.daraz.com.np,,,ef3cb5fa035dfa0f0084c02555d8c2aead8617ee,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Guaranteed by 13-14 Aug,en,body,div,benign,,www.daraz.com.np,,,81d98645c6331480faeef8fc92924f95c3ec22de,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Gems save Rs. 48,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,18130e431dad31136b1f55030418947bd7606e44,https://www.daraz.com.np/kids-bookcases/
+Ends in 03:23:38,en,timer,span,false_urgency,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,false_urgency,,ac2473478816a46b04d682e81e7b9d6ac3e090ea,https://darkpattern-shop-frontend-rho.vercel.app/
+Men's Hoodies,en,body,a,benign,,www.daraz.com.np,,,d611ec7c56d7dadd3a6d9cd661bdafa1f7500d32,https://www.daraz.com.np/invisible-unisex-fashion-3/
+EMU,en,label,label,benign,,www.daraz.com.np,,,4577db1a93fc0d7cd5ad84d34cba1112ddf37d72,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Women's Dresses,en,body,a,benign,,www.daraz.com.np,,,681b6b95c02fd6fd238507dc0d10a7beddfac05a,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Category,en,body,div,benign,,www.daraz.com.np,,,97f8c3d29ce722ed7f4af85062710bd30c93bb93,https://www.daraz.com.np/kids-bookcases/
+59 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,67428ec8bf1a1097b2904211290fc412e0f30e61,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Other 14+ years 6-12 Years,en,body,div,benign,,www.daraz.com.np,,,6c67a7651cedcb697517a601ddbea40d5a5b929f,https://www.daraz.com.np/kids-bookcases/
+1080p Home Security Camera,en,heading,h3,benign,,darkpattern-shop-frontend-rho.vercel.app,,,23b16684269c49e1f0b0b5172cc645e5b5769040,https://darkpattern-shop-frontend-rho.vercel.app/
+Gems save Rs. 19,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,0b1f385b6bf4b9c7a33634e6fe6fba10c8f441a1,https://www.daraz.com.np/kids-bookcases/
+Sports,en,label,label,benign,,www.daraz.com.np,,,343945730e28d284cb54c6710615fef43111ec4a,https://www.daraz.com.np/invisible-unisex-fashion-3/
+( 21 ),en,fine_print,span,benign,,www.daraz.com.np,,,aa4183225e7a1774921f2c0bf9832d07d922891e,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Organic Cotton Bath Towel Set,en,heading,h3,benign,,darkpattern-shop-frontend-rho.vercel.app,,,198c20742bb09dc7053e8987ba8a556eb44b8e25,https://darkpattern-shop-frontend-rho.vercel.app/
+Bangladesh,en,body,a,benign,,www.daraz.com.np,,,02f8d61ade627cfaa42c6e56022b3e2cba8f2981,https://www.daraz.com.np/kids-bookcases/
+Default,en,body,span,benign,,www.daraz.com.np,,,ed438079eb475762f494d327e611c3613202313d,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+7 sold Overseas,en,body,div,benign,,www.daraz.com.np,scarcity,,af16681f1d8d1d20f388b4deeb149e3cfb4e3567,https://www.daraz.com.np/kids-bookcases/
+Chat Response Rate,en,body,div,benign,,www.daraz.com.np,,,954b2fbdba4259ba15b7310e8e71ab71f02264d2,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+"Rs. 1,288",en,body,span,benign,,www.daraz.com.np,,,f18f024b754d275efd6d822303173b5672fddba4,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+आनन्द क.,dev,body,div,benign,,www.daraz.com.np,,,dcdc331ad22739f37aa5a97439772595b83078fa,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Specifications,en,heading,h2,benign,,www.daraz.com.np,,,cd3dfeaa334717bb1a8d6f1b0269e63bc53a0608,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Gems save Rs. 20,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,17b80fec588f79959a742f00b1cf2cf202734caa,https://www.daraz.com.np/kids-bookcases/
+Stainless Steel Water Bottle 1L,en,heading,h3,benign,,darkpattern-shop-frontend-rho.vercel.app,,,cb72c5c81662f921531f1f950ecb9340ff2feb98,https://darkpattern-shop-frontend-rho.vercel.app/
+Silk,en,label,label,benign,,www.daraz.com.np,,,e36fd85fe3896290e2b5e2d80321ee7fc7575a6e,https://www.daraz.com.np/invisible-unisex-fashion-3/
+28% Off,en,fine_print,span,benign,,www.daraz.com.np,,,29208f45e396381a7fafa834ba209b5ed3d916d4,https://www.daraz.com.np/kids-bookcases/
+50% Off Gems save Rs. 41,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,e03a0e8bd1fad67c4496a91b874d0c86ef8c5c12,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Price,en,body,div,benign,,www.daraz.com.np,,,39629be833d4b3b14922e56ac984e5b7a1dd2e6c,https://www.daraz.com.np/kids-bookcases/
+Aluminium,en,label,label,benign,,www.daraz.com.np,,,906ad8e609d38e214c54ceb2c2a68cdeb1d2f3f2,https://www.daraz.com.np/kids-bookcases/
+Sheet Metal,en,label,label,benign,,www.daraz.com.np,,,88a9ff8d40aa2c9c04cc44223277143bd0b1c55b,https://www.daraz.com.np/kids-bookcases/
+49 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,a6627c3277f051b2268e98e52fa845fe595a93d3,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Space Savers,en,body,a,benign,,www.daraz.com.np,,,09a798e2865010c5c2457a9a0470a6d73866a866,https://www.daraz.com.np/kids-bookcases/
+Showing results for hoodies sweatshirts,en,body,div,benign,,www.daraz.com.np,,,37b399ca34bbe9878f3533c11db933d9f0e2f1c3,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Bagmati Province Lumbini Province Overseas Local,en,body,div,benign,,www.daraz.com.np,,,333447975e92644b84fa35776f344715067d1a17,https://www.daraz.com.np/kids-bookcases/
+Positive Seller Ratings,en,body,div,benign,,www.daraz.com.np,,,159eb769482de593c3f5b99943a2ab39ccc17caf,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Gems save Rs. 11,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,630b2b7a583fc7501fa0df8bcdbc147ff932a0d5,https://www.daraz.com.np/kids-bookcases/
+"Rs. 1,714",en,body,div,benign,,www.daraz.com.np,,,228da067b4e6bab8fe7f14c219547a301badaca5,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Myanmar,en,body,a,benign,,www.daraz.com.np,,,09e54e19ee4772022487ad3652eba9821b69cd4b,https://www.daraz.com.np/kids-bookcases/
+91 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,cd0c0686bea257eba44291cd8c9a76fed01aa591,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Buy More Save More,en,label,label,benign,,www.daraz.com.np,,,55c8006208e887fbda160cad726fee1d22f0eb7e,https://www.daraz.com.np/kids-bookcases/
+11% Off Gems save Rs. 48,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,e0d3e6e4f4a53104a3c176827424c3276916b1a4,https://www.daraz.com.np/kids-bookcases/
+Polyester,en,label,label,benign,,www.daraz.com.np,,,3264de624abbdb4fa57f9c0cff36137d1fab26c9,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Daraz University,en,body,li,benign,,www.daraz.com.np,,,daaad0272e56028b30523d03ae79e8b9ab727519,https://www.daraz.com.np/kids-bookcases/
+27 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,fedbc259a33fdf5abc2cdf2add219fc0a93456c1,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Yes,en,label,label,benign,,www.daraz.com.np,,,dc92fee939a2be3748bb163da8a89659c3e4f489,https://www.daraz.com.np/kids-bookcases/
+34% Off Gems save Rs. 13,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,506c1af441efa0c23b13c1f6f7a09ea530cd6aa5,https://www.daraz.com.np/kids-bookcases/
+Polyvinyl Chloride (PVC),en,label,label,benign,,www.daraz.com.np,,,c889830a7c5784abdee54d6d4019ab80472345f6,https://www.daraz.com.np/kids-bookcases/
+European,en,label,label,benign,,www.daraz.com.np,,,227c3ac1031a8f1eb3421227a6a75c9d47568494,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Itachi uchiha Anime hoodie for men's and women Unisex,en,body,div,benign,,www.daraz.com.np,,,1026265673707586e8a499bad7bfcefadd32a737,https://www.daraz.com.np/invisible-unisex-fashion-3/
+VGR-055 Professional Rechargeable Cordless Beard Hair Trimmer and Shavers,en,heading,h4,benign,,www.daraz.com.np,,,5c11205e44327848154f2ad63f89a56ae4595dae,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Reebok,en,label,label,benign,,www.daraz.com.np,,,32591c0619c5bec7f4515b4606458c18344eb599,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Ends in 03:23:00,en,timer,span,false_urgency,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,false_urgency,,122a4d410d6b57b358889322a2c2975b7d2d87bf,https://darkpattern-shop-frontend-rho.vercel.app/
+Buy Now,en,cta,button,benign,,www.daraz.com.np,,,a7ef50782070f13420e46f3a767f0846e85736a1,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Rs. 1499,en,body,div,benign,,darkpattern-shop-frontend-rho.vercel.app,,,e331444ddeb0ab1c2deb657210dcb5554a24404a,https://darkpattern-shop-frontend-rho.vercel.app/
+© Daraz 2026,en,body,div,benign,,www.daraz.com.np,,,4b4fc1146db4f6b5cf20072b6d3c9ee95af51a84,https://www.daraz.com.np/kids-bookcases/
+Save More on App,en,body,span,benign,,www.daraz.com.np,,,6a4b52c1ca7bffb134cf02df755e49e2e17a9cba,https://www.daraz.com.np/kids-bookcases/
+Returns & Refunds,en,body,li,benign,,www.daraz.com.np,,,04cfda533d07fab423dab83a73072b2a1a0d75b6,https://www.daraz.com.np/kids-bookcases/
+Nylon,en,label,label,benign,,www.daraz.com.np,,,9b5deddfd5d7103d6a6392eeb0036c1cf72cfc6b,https://www.daraz.com.np/invisible-unisex-fashion-3/
+50% Off Gems save Rs. 28,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,79a6d665f2d03f1ffe5fb08ed258b1c8304bf038,https://www.daraz.com.np/kids-bookcases/
+(43),en,fine_print,div,benign,,www.daraz.com.np,,,f560777a9efb208c1dac7422dbfae8b91e45058e,https://www.daraz.com.np/kids-bookcases/
+Pattern,en,body,div,benign,,www.daraz.com.np,,,d26b00c9534e8b4431ee6ee400a484989415f283,https://www.daraz.com.np/invisible-unisex-fashion-3/
+4-Layer 8-Cube Assemble Bookshelf - Fabric Storage Rack Table & Organizer Shelf for Home,en,body,div,benign,,www.daraz.com.np,,,c61eb7d801cf5918421f3af5bbe4a7d0a0a2e2e0,https://www.daraz.com.np/kids-bookcases/
+Only 2 left in stock!,en,body,figure,scarcity,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,scarcity,stock_counter,907956de7c2293e1b64808c7e5f48059c5648ec7,https://darkpattern-shop-frontend-rho.vercel.app/
+4.8,en,body,span,benign,,darkpattern-shop-frontend-rho.vercel.app,,,f004d203581873341f89a3bc5fb0c6eabc1940f9,https://darkpattern-shop-frontend-rho.vercel.app/
+Microfiber Polyester,en,label,label,benign,,www.daraz.com.np,,,e3e52a7ed8f23cb6038b00b9e2d3c36720a0d20e,https://www.daraz.com.np/kids-bookcases/
+330 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,58121e8379ccedd67b95f50569cb930993cd324b,https://www.daraz.com.np/invisible-unisex-fashion-3/
+( 17 ),en,fine_print,span,benign,,www.daraz.com.np,,,e76153c6f950078c8170cc6b4329ff11f1b2af99,https://www.daraz.com.np/kids-bookcases/
+Polyester PU Coated,en,label,label,benign,,www.daraz.com.np,,,d4e61dc21783f70fcca1d9eea94b8881a26f66fb,https://www.daraz.com.np/invisible-unisex-fashion-3/
+4.3,en,body,span,benign,,darkpattern-shop-frontend-rho.vercel.app,,,bc9ab6b0ebccaf285fb19ece5e0dfe5f60b6ebeb,https://darkpattern-shop-frontend-rho.vercel.app/
+Burgundy,en,label,label,benign,,www.daraz.com.np,,,f833492a7553766f32f064500d696a835a6525c6,https://www.daraz.com.np/invisible-unisex-fashion-3/
+5 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,06bcd7298e1c8ef49eca03130388acfc6b2c419f,https://www.daraz.com.np/kids-bookcases/
+Multi,en,label,label,benign,,www.daraz.com.np,,,a3e75d12b58f96bd95666a0f86d91bdbfeb7b011,https://www.daraz.com.np/kids-bookcases/
+Casual,en,label,label,benign,,www.daraz.com.np,,,827f1bbc26f59e8a4a499bf2d7887974f57bf49a,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Gems save Rs. 59,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,c9a00f3be5fdae0226f469621cd4fba11f7b1496,https://www.daraz.com.np/invisible-unisex-fashion-3/
+AEROMAX,en,body,a,benign,,www.daraz.com.np,,,a6d20a01de9824886c4a835d76573e8d9241a593,https://www.daraz.com.np/kids-bookcases/
+Digital Payments,en,body,li,benign,,www.daraz.com.np,,,7093e9dea5b3b0b661114ee59981977f713bad9b,https://www.daraz.com.np/kids-bookcases/
+"Rs. 2,048",en,body,div,benign,,www.daraz.com.np,,,b4909afdaf30a7d267e42364388ccfc2571f93ea,https://www.daraz.com.np/kids-bookcases/
+52% Off Gems save Rs. 17,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,548ea6160ff743fcc7ead16cff567fb31b76389d,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Gems save Rs. 76,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,43638cbfda7dd69d2f2b1a4eec9942e958f7160a,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Gems save Rs. 10,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,f1a79eff3d735c7506011f2b4705122666070c8a,https://www.daraz.com.np/invisible-unisex-fashion-3/
+About Daraz,en,body,li,benign,,www.daraz.com.np,,,4ad6862ec4ad0a30f152b19976b377203c10d581,https://www.daraz.com.np/kids-bookcases/
+🔥 Today's deal price ends at midnight! Only 3 left in stock!,en,body,figure,false_urgency scarcity,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,scarcity false_urgency,stock_counter,6511a62997adb7369a17b5f6b4b33a060986fe78,https://darkpattern-shop-frontend-rho.vercel.app/
+Nyptra,en,label,label,benign,,www.daraz.com.np,,,79198ca301cc7e6b2412b1a55b1db55937484853,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"Rs. 1,884",en,body,div,benign,,www.daraz.com.np,,,1927a48d4bb464bd874118cf918ef6c97fd97084,https://www.daraz.com.np/invisible-unisex-fashion-3/
+258 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,7c7b48d8c35842a22f0eec22708f73e838185c9b,https://www.daraz.com.np/kids-bookcases/
+Local seller warranty,en,label,label,benign,,www.daraz.com.np,,,6d7917fd14f0fb6659c849d47dc24eb685d9e585,https://www.daraz.com.np/kids-bookcases/
+63 sold,en,promo,span,benign,,www.daraz.com.np,scarcity,,d9e9ffd00adbf8dd4b43c9935ad56588e44d4a19,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Light green,en,label,label,benign,,www.daraz.com.np,,,fa8ca7b3ae8b356b6ba71d05170abaef7ebcd8b0,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Shoe Organisers,en,body,a,benign,,www.daraz.com.np,,,c4360f76039c429bf5d9102c076d0364aaa5e5f1,https://www.daraz.com.np/kids-bookcases/
+33% Off Gems save Rs. 10,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,7acf459c41077fbed1c2479194db37dbd7ff1e69,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Multicolor,en,label,label,benign,,www.daraz.com.np,,,4ad83d845909a22ec875371a55cdff3e77c3a28d,https://www.daraz.com.np/kids-bookcases/
+Metallica Band Combo Printed Hoodie And Trouser For Men And Women,en,body,div,benign,,www.daraz.com.np,,,c87ad704de1db9d20ebfb0d9c9a5d6495a1e499a,https://www.daraz.com.np/invisible-unisex-fashion-3/
+No Warranty Seller Warranty Brand Warranty Local seller warranty 100 % original product,en,body,div,benign,,www.daraz.com.np,,,bcacba5eac675cc5cd976200fee9afe3da919339,https://www.daraz.com.np/kids-bookcases/
+4.6,en,body,span,benign,,darkpattern-shop-frontend-rho.vercel.app,,,b36fd62d7e2f6b43aa6fcc2779c0f2aa38fd8e3e,https://darkpattern-shop-frontend-rho.vercel.app/
+Sri Lanka,en,body,a,benign,,www.daraz.com.np,,,2de7583045fadf86cf351ad31807f4a471363da5,https://www.daraz.com.np/kids-bookcases/
+26 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,b3b59212df020e38c435890acb582c5869201b6c,https://www.daraz.com.np/invisible-unisex-fashion-3/
+218 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,f9ef89e5a00b55780f7719d3c133c43bb2155160,https://www.daraz.com.np/invisible-unisex-fashion-3/
+18 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,8a83bbff751689189bcbe58152f37f28813a8db6,https://www.daraz.com.np/invisible-unisex-fashion-3/
+49% Off Gems save Rs. 76,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,6e1178647f62fd97359b6349741fc728d7dae8d9,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Gems save Rs. 17,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,719427e86c8d8ed14af4ac986611af014c94d550,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"4-Layer Double Row Bookshelf Storage Rack – Multi-Layer Reinforced Bookcase Organizer for Home, Bedroom & Office – Easy Install 8 Cube Floor Shelf",en,body,div,benign,,www.daraz.com.np,,,4a01be6583cd2777c5405e2a9a87945e173c943d,https://www.daraz.com.np/kids-bookcases/
+Categories,en,body,div,benign,,www.daraz.com.np,,,faa38b0de36bcd1f6997b400ba0b5e17dfe92741,https://www.daraz.com.np/kids-bookcases/
+"Rs. 9,178",en,body,div,benign,,www.daraz.com.np,,,f7028efbe89980b413f9a420d63d9ff6bcaa9344,https://www.daraz.com.np/kids-bookcases/
+6 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,c460ee9a76850fcdfdd6090606c6077f791739f6,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Foldable Open Storage Multi-compartment Display Case Cabinets Wine Bottle Storage Silverware Storage Stainless Steel Wine Glass Storage Water Resistant,en,body,div,benign,,www.daraz.com.np,,,d66a0f7edae9a76a5101213c26b67890d875c7da,https://www.daraz.com.np/kids-bookcases/
+Flash Sale,en,label,label,benign,,www.daraz.com.np,,,f6c6aa4cae1e4a56b96d275889160a4c93ecec2d,https://www.daraz.com.np/invisible-unisex-fashion-3/
+01:32:42,en,timer,span,false_urgency,LLM-annotated,www.daraz.com.np,false_urgency,,012d3845829ede1bc02b2ec8d471fbdf0d4add4a,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+"Rs. 1,522",en,body,div,benign,,www.daraz.com.np,,,d111b0cbe970cf930503c7d0b6cb6d2911733d81,https://www.daraz.com.np/invisible-unisex-fashion-3/
+No Warranty,en,label,label,benign,,www.daraz.com.np,,,51aa87bb4fdc652c396698b1022ad6c82921020e,https://www.daraz.com.np/kids-bookcases/
+Rs. 699,en,body,div,benign,,darkpattern-shop-frontend-rho.vercel.app,,,78cd516ff89e3503a4f5ee6d44f5b9cd48b61faf,https://darkpattern-shop-frontend-rho.vercel.app/
+Only 3 left in stock!,en,badge,span,scarcity,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,scarcity,stock_counter,f359c885e70e88024f3241cd2801338803184bf8,https://darkpattern-shop-frontend-rho.vercel.app/
+"Rs. 1,095",en,body,div,benign,,www.daraz.com.np,,,ce784fd3f5e685efe6075c4536670069ca06d4e7,https://www.daraz.com.np/kids-bookcases/
+39% Off Gems save Rs. 76,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,c5ffc348b65bc353edfca6a26bb8097eb809031d,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Ends in 05:35:10,en,timer,span,false_urgency,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,false_urgency,,eac33929390753b3fbb6ef5fb5df2e676bc02ee7,https://darkpattern-shop-frontend-rho.vercel.app/
+Girls' Hair Accessories,en,body,a,benign,,www.daraz.com.np,,,a9ee10ff9c8a0815cd29df89f46829e799191fd0,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Bamboo Desk Organizer,en,heading,h3,benign,,darkpattern-shop-frontend-rho.vercel.app,,,ee4cb6c5da408713e6b770cbf278111398b999fb,https://darkpattern-shop-frontend-rho.vercel.app/
+22% Off Gems save Rs. 20,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,ead5e0747d1c279349053f93dd8d9a162396f948,https://www.daraz.com.np/kids-bookcases/
+( 98 ),en,body,span,benign,,darkpattern-shop-frontend-rho.vercel.app,,,0c3418ad27ecbe9d386d8cc81d6268cbf650f21b,https://darkpattern-shop-frontend-rho.vercel.app/
+Gems save Rs. 28,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,51a27b8ba8f72796e9970c5164fb407742520b28,https://www.daraz.com.np/kids-bookcases/
+PIAZZAITALIA,en,label,label,benign,,www.daraz.com.np,,,e3c0eb8d864ba3612fc56acd86feafdade2028f2,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Rs. 4499,en,body,div,benign,,darkpattern-shop-frontend-rho.vercel.app,,,e8836de0dae7124d9f1c700849e227946fe1b5d8,https://darkpattern-shop-frontend-rho.vercel.app/
+Book Rack 9 Cube Multipurpose Bookshelf Organizer Bookcase,en,body,div,benign,,www.daraz.com.np,,,a83a2371aadc45b25f8a521217647babb59136fb,https://www.daraz.com.np/kids-bookcases/
+"DIY Cube Bookshelf - 4-Layer Storage Rack Organizer for Home & Office | Multipurpose 9-Cube Cabinet Shelves for Living Room, Bedroom, & Children’s Bookcases",en,body,div,benign,,www.daraz.com.np,,,aa6fa9d4a0236c1eb428dd49275680f11f43f6b5,https://www.daraz.com.np/kids-bookcases/
+INT,en,body,div,benign,,www.daraz.com.np,,,6a4af07d911f43f7c4e7a8995481d81cfeb579ed,https://www.daraz.com.np/invisible-unisex-fashion-3/
+hunxa sir,en,body,div,benign,,www.daraz.com.np,,,c010dc6b39565e95daa8cbd21d5b3343568d1d06,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Ends in 06:23:38,en,timer,span,false_urgency,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,false_urgency,,6dbdf0509c8289b7dcfb5ad4b237d78174157124,https://darkpattern-shop-frontend-rho.vercel.app/
+Dark blue,en,label,label,benign,,www.daraz.com.np,,,5883a51149cf85db8f8875d330d6e1e8f62d7c60,https://www.daraz.com.np/kids-bookcases/
+Life Time Warranty,en,label,label,benign,,www.daraz.com.np,,,c2c3cfaab6369294e1417d73bf93c2d3507d3578,https://www.daraz.com.np/kids-bookcases/
+( 43 ),en,fine_print,span,benign,,www.daraz.com.np,,,fe9dab2e49e68faafd1d635020dba3eac5a76e9d,https://www.daraz.com.np/kids-bookcases/
+"4 Layers Bookshelf Storage Shelve, Book Rack for Books Storage Organizer Children Book Rack Bookcase for Home Furniture Cabinet Shelves for Bedroom Office Living Room (8-Cubes)",en,body,div,benign,,www.daraz.com.np,,,829ea0ee24abab970dc35525c8c0239d6af82acf,https://www.daraz.com.np/kids-bookcases/
+Gems save Rs. 25,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,54db4686457983236ba7e5dea626b55fc8b950f7,https://www.daraz.com.np/kids-bookcases/
+J.Fisher,en,label,label,benign,,www.daraz.com.np,,,79f9d231e696374c717882c221def54336f3c124,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Stainless Steel,en,label,label,benign,,www.daraz.com.np,,,22fe7a958e2339a51c425d90b5c9fa4298f112be,https://www.daraz.com.np/kids-bookcases/
+Filing & Document Presentation,en,body,a,benign,,www.daraz.com.np,,,0a86e9400d0a6c8f9b6fd4d4ea35f5aaade48da6,https://www.daraz.com.np/kids-bookcases/
+Foldable,en,label,label,benign,,www.daraz.com.np,,,e87335fa4b59d2d7f398e16924d2c053892e50c0,https://www.daraz.com.np/kids-bookcases/
+Gems save Rs. 13,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,8698c232a20e648ebed4573a371adb62281bd1e0,https://www.daraz.com.np/kids-bookcases/
+SUEDE,en,label,label,benign,,www.daraz.com.np,,,824381d020ced7f1eee536eb618059fb6ba8e99b,https://www.daraz.com.np/invisible-unisex-fashion-3/
+97 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,2bf247e546a0a40ae034cd02e26df1d2224ffe50,https://www.daraz.com.np/invisible-unisex-fashion-3/
+(4),en,fine_print,div,benign,,www.daraz.com.np,,,cf07cde2a935702976fcd80949f187bf5b7b5431,https://www.daraz.com.np/kids-bookcases/
+"Rs. 1,818",en,body,div,benign,,www.daraz.com.np,,,ad740c32db82577ca2dd781da05d4bb40242b393,https://www.daraz.com.np/kids-bookcases/
+( 51 ),en,body,span,benign,,darkpattern-shop-frontend-rho.vercel.app,,,d231180743576a621db0823381b5f9debd77f323,https://darkpattern-shop-frontend-rho.vercel.app/
+( 15 ),en,fine_print,span,benign,,www.daraz.com.np,,,116b2d676ca69c44c1d2c96a2229c3cd2923bff2,https://www.daraz.com.np/kids-bookcases/
+60 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,ef6f1324e46ecd89282c258f038da180a41b6485,https://www.daraz.com.np/kids-bookcases/
+Nyptra,en,body,a,benign,,www.daraz.com.np,,,e3d124448800480928b5ff15792fe8c4aaf040a8,https://www.daraz.com.np/invisible-unisex-fashion-3/
+1 Life Time Warranty 1 Month 10 Years 1 Year 42 6 Months 2 Years 26,en,body,div,benign,,www.daraz.com.np,,,f7b40eac4445096f4e0afd13dbfd18c445c10b9a,https://www.daraz.com.np/kids-bookcases/
+( 42 ),en,fine_print,span,benign,,www.daraz.com.np,,,fccf97152d0c9ef506912ca4e6f0163dbd64e434,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Gems save Rs. 23,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,48e819a994b9030d9fa726e4fafd12b4ba1c9346,https://www.daraz.com.np/kids-bookcases/
+Gems save Rs. 92,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,1a17fb016385bb3caffcb4bf6c5d4f9d43f76c09,https://www.daraz.com.np/kids-bookcases/
+Bamboo Fiber,en,label,label,benign,,www.daraz.com.np,,,bbea35432cd991e1fd4ba805d37cdace75e4e8c7,https://www.daraz.com.np/invisible-unisex-fashion-3/
+XXXL,en,label,label,benign,,www.daraz.com.np,,,ca2a6dd94ce7a5a9f6169e1a463ff3a9769920fa,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"Kamakhya decor Bookshelf , simple storage rack for Books, stationery, for kids room, study room in white",en,body,div,benign,,www.daraz.com.np,,,a9e538a8edacebd1868aeee7bde604abb27d4ce0,https://www.daraz.com.np/kids-bookcases/
+Adidas,en,label,label,benign,,www.daraz.com.np,,,f4353eef222ca264893166dbd166293ac9fb38e3,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"Rs. 1,335",en,body,div,benign,,www.daraz.com.np,,,57fedf564b8eb5afe6ca9f1aec56a95992293ffe,https://www.daraz.com.np/kids-bookcases/
+Jersey,en,label,label,benign,,www.daraz.com.np,,,04cf12b0d4c22179e1a2f0459528ef241d608d6b,https://www.daraz.com.np/invisible-unisex-fashion-3/
+10 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,dde187dcc0d5682cc3f8c7da6ce9453169d4bd83,https://www.daraz.com.np/kids-bookcases/
+Overseas,en,label,label,benign,,www.daraz.com.np,,,16020e47d9a9caf9def58bdccd8bbb767d7a5256,https://www.daraz.com.np/kids-bookcases/
+28% Off Gems save Rs. 18,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,6451f57a2b3e9c078716ce7846881cf365732fc6,https://www.daraz.com.np/kids-bookcases/
+"Adjustable Bookcase: 9 Shelves, Home Furniture Storage, Multipurpose 9 Cube Book Shelf",en,body,div,benign,,www.daraz.com.np,,,52d2f6ba77a8ac7b6cb9ed4356c4370a47c008e4,https://www.daraz.com.np/kids-bookcases/
+Gems save Rs. 41,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,1a2c82ef21ea763f43230624b5dc71212711e182,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Denim,en,label,label,benign,,www.daraz.com.np,,,a836922fd5316b24736b628cef689a5a9c92fdd3,https://www.daraz.com.np/invisible-unisex-fashion-3/
+40% Off Gems save Rs. 9,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,5047e199ee5fec6363ec7b54f2c9a94c90c69fdc,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Gurung - 05 Jun 2024,en,body,div,benign,,www.daraz.com.np,,,c10b106416554bef09f82bcd8dddac3843454e02,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Joint,en,label,label,benign,,www.daraz.com.np,,,56bcfaa4a5f591bc5dd6b06a3ea1e61988fb0ccb,https://www.daraz.com.np/invisible-unisex-fashion-3/
+1*trimmer,en,body,div,benign,,www.daraz.com.np,,,37dbef02189337f98eda9f56289cef31bcd91754,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Login,en,body,div,benign,,www.daraz.com.np,,,00454565b9f80c3ee4b77d46ad45c573c63450fe,https://www.daraz.com.np/kids-bookcases/
+Contact Us,en,support_link,li,benign,,www.daraz.com.np,,,4ee5a5084f37c205dadc55fec3561e8c8cf77af6,https://www.daraz.com.np/kids-bookcases/
+भाषा परिवर्तन,dev,body,span,benign,,www.daraz.com.np,,,1ebbd46eb5d9c6fde4637caf5e34f88970e5bbc4,https://www.daraz.com.np/kids-bookcases/
+6-12 Years,en,label,label,benign,,www.daraz.com.np,,,8767100f2ab3d3f7c667525224a539baf1022d40,https://www.daraz.com.np/kids-bookcases/
+Gems save Rs. 86,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,9a2115264b91cd8b4cf550b3b991bf3b0bc38fdc,https://www.daraz.com.np/invisible-unisex-fashion-3/
+SKU,en,body,span,benign,,www.daraz.com.np,,,bc637558d586f883059f5d43a07f53b40cb13121,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Patchwork,en,label,label,benign,,www.daraz.com.np,,,e75679ec0f5efb4246aa438c14298f8eb653e023,https://www.daraz.com.np/invisible-unisex-fashion-3/
+21 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,c013d0d3a75228714ceb48ffcef144f6a828c30d,https://www.daraz.com.np/invisible-unisex-fashion-3/
+If I order today when can you deliver it tomorrow at Thankot?,en,body,div,benign,,www.daraz.com.np,confirmshaming,,bc5dcccfa677ee7e39b0103dedce37ef7fe3c932,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+You may also like,en,heading,h6,benign,,www.daraz.com.np,,,804a7b7297a3274b95820a64a4befb64c4882e25,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+(71),en,fine_print,div,benign,,www.daraz.com.np,,,0efb32a210030b5ff67fe6a63ec921c59d558625,https://www.daraz.com.np/kids-bookcases/
+( 289 ),en,body,span,benign,,darkpattern-shop-frontend-rho.vercel.app,,,dbb0d9ba18cb743f18f30d453269a30d0030a61e,https://darkpattern-shop-frontend-rho.vercel.app/
+Purple,en,label,label,benign,,www.daraz.com.np,,,f853bb6ce1b4fbef58b7107d1ca6f1e5c09de739,https://www.daraz.com.np/kids-bookcases/
+33% Off Gems save Rs. 30,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,3c917b79fedd2ed919ae3aa3b8c6e0e73ef6a24e,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Ends in 06:23:00,en,timer,span,false_urgency,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,false_urgency,,e16162ee2097753e6de271c4d7c37f0c84f41a51,https://darkpattern-shop-frontend-rho.vercel.app/
+BLES,en,label,label,benign,,www.daraz.com.np,,,a75620da72360525b6163fdaa45d471265f597cd,https://www.daraz.com.np/invisible-unisex-fashion-3/
+256 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,22392b734b4eb52222efab9cd2864fecd84c5bdc,https://www.daraz.com.np/kids-bookcases/
+Nike,en,label,label,benign,,www.daraz.com.np,,,a21c1e94e46fd8de4a9c501c54a5873c0112a09f,https://www.daraz.com.np/invisible-unisex-fashion-3/
+958 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,0768ec2a722365f266ff177d9af413d466218415,https://www.daraz.com.np/kids-bookcases/
+"Rs. 1,343",en,body,div,benign,,www.daraz.com.np,,,f807506846a903ccd9d2afe6559f07f833eecf5e,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Other,en,label,label,benign,,www.daraz.com.np,,,c565d958b611f682eab788609789f4740e838162,https://www.daraz.com.np/kids-bookcases/
+26% Off Gems save Rs. 19,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,8489f089b0f9b559f0c3b3d036a3f611258d3c1d,https://www.daraz.com.np/invisible-unisex-fashion-3/
+ABS,en,label,label,benign,,www.daraz.com.np,,,63bc3bb17c93eeebb272dfabe99a1a3353d66363,https://www.daraz.com.np/kids-bookcases/
+Light Grey,en,label,label,benign,,www.daraz.com.np,,,199a8467b45d325b49867dd29139545c5deef462,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Rs. 888,en,body,div,benign,,www.daraz.com.np,,,dbb7bcd8b5dc655e2cfc4faa562daad8596d7002,https://www.daraz.com.np/invisible-unisex-fashion-3/
+61 people bought this in the last 24 hours,en,body,p,social_proof,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,,recent_activity,5449ad8ecf033f015261ad24ef462b25ce87f7d4,https://darkpattern-shop-frontend-rho.vercel.app/
+Attack on Titan Anime Printed Hoodie For Men And Women,en,body,div,benign,,www.daraz.com.np,,,8c8cb630b00227f4a5f2104c8e273155ed30dd2d,https://www.daraz.com.np/invisible-unisex-fashion-3/
+New Arrival Mall Flash Sale Free Delivery Buy More Save More Choice Any 3 Gems Fast Delivery,en,cta,div,benign,,www.daraz.com.np,forced_action,,c77cf038a716ae8fe9d0381bf527eead15acc895,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Preppy / Heritage,en,label,label,benign,,www.daraz.com.np,,,c863d163c80192e7ba18ce8ec5df064488363bb1,https://www.daraz.com.np/invisible-unisex-fashion-3/
+earbuds,en,body,a,benign,,www.daraz.com.np,,,6ae1faa5c7fc0fcac24a34bc619b83ca23b0b21e,https://www.daraz.com.np/kids-bookcases/
+(7),en,fine_print,div,benign,,www.daraz.com.np,,,3b5b3a7db12e7f3d171bfd282ee12f27c08aa091,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Warranty Type,en,body,div,benign,,www.daraz.com.np,,,72d5778f73a3bde4ec629606bb7b73e663b27735,https://www.daraz.com.np/kids-bookcases/
+Follow Us,en,heading,h3,benign,,www.daraz.com.np,,,1c4952d828af63ff7102c40d0263185bd8a4568e,https://www.daraz.com.np/kids-bookcases/
+E-SPARK - Answered within 24 hours,en,body,div,benign,,www.daraz.com.np,,,33bc54cfe0e945213b06d9e26553d1df2fc6bb89,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+"Geemy 3 In 1 Rechargeable Electric Shaver For MenRs. 1,288",en,body,div,benign,,www.daraz.com.np,,,4fad78433f54e008c4b256462b6d0720d84a6f23,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+21% Off Gems save Rs. 92,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,52942d7385e51207faac16f25112fc5f588437cc,https://www.daraz.com.np/kids-bookcases/
+Luffy Anime Printed Hoodie For Men And Women,en,body,div,benign,,www.daraz.com.np,,,e1975cc71ddde665fa478e82ab44cf0eac0e61c1,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Hills and clouds,en,label,label,benign,,www.daraz.com.np,,,45f23257a0197a8a7b6298bab0f1b71c58fa5f72,https://www.daraz.com.np/invisible-unisex-fashion-3/
+9 Cube 4 Layer Multipurpose Book Shelf - Color May Vary,en,body,div,benign,,www.daraz.com.np,,,670e9ab364159d3c1d1fae9c29798fe3a1958c0d,https://www.daraz.com.np/kids-bookcases/
+12 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,f8bab6f43db49fbe8b225f0de13ff87106906561,https://www.daraz.com.np/kids-bookcases/
+hoodies sweatshirts,en,body,span,benign,,www.daraz.com.np,,,864bb8629ac003c893b1f5971e0e897602ac6a42,https://www.daraz.com.np/invisible-unisex-fashion-3/
+2 Years,en,label,label,benign,,www.daraz.com.np,,,8e20046742c6ead395ff12978f7115e0aa477e72,https://www.daraz.com.np/kids-bookcases/
+Ceiling Lights,en,body,a,benign,,www.daraz.com.np,,,ea2091457f62bb282c8b954134fd639586cd1a44,https://www.daraz.com.np/kids-bookcases/
+Sign Up,en,body,div,benign,,www.daraz.com.np,,,a59e4104da317279cb41bf9e428ba27a2be0367c,https://www.daraz.com.np/kids-bookcases/
+( 20 ),en,fine_print,span,benign,,www.daraz.com.np,,,b01340ac95cc7d3c4b80e958dca9d85312fd766b,https://www.daraz.com.np/invisible-unisex-fashion-3/
+View :,en,body,div,benign,,www.daraz.com.np,,,77cccd614eeef45090c4519fe035766e2fbe8b24,https://www.daraz.com.np/kids-bookcases/
+Color Family,en,body,div,benign,,www.daraz.com.np,,,4d5b19a3c0e6cbf27ea2db66c2d6bb65423d71f0,https://www.daraz.com.np/invisible-unisex-fashion-3/
+44 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,d15c7a4b026f0d05f364171e95fbfdf033c6fc46,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Fashion Mobile Accessories,en,body,a,benign,,www.daraz.com.np,,,8c4e23e60b5e7e3ec6bfc1c13a7afb557965c01a,https://www.daraz.com.np/kids-bookcases/
+( 71 ),en,fine_print,span,benign,,www.daraz.com.np,,,6a3db3cfeebc19f1fbe552fc334a1884f563173a,https://www.daraz.com.np/kids-bookcases/
+Help Center,en,support_link,li,benign,,www.daraz.com.np,,,d9cfa92d491a54e2dd2f6ac0904062c274e9d917,https://www.daraz.com.np/kids-bookcases/
+Yamaha,en,label,label,benign,,www.daraz.com.np,,,a9f6bc93b05906597f65a0bf09c664f3a59d9611,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Organizer Picture Book Display Cabinet Bookshelf Children's Wall Behind the Door Reading Magazine Storage Wall Hanging Bookshelf,en,body,div,benign,,www.daraz.com.np,,,9d7b7486b8d911d3fee12221b15469e4c8d2ca59,https://www.daraz.com.np/kids-bookcases/
+36% Off Gems save Rs. 23,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,8b59fa61ab98423f6a9f466a91420e51a4c5b3e8,https://www.daraz.com.np/kids-bookcases/
+4.7,en,body,span,benign,,darkpattern-shop-frontend-rho.vercel.app,,,414a6060f949feecbedf4a4ef9e80178fa5efe6a,https://darkpattern-shop-frontend-rho.vercel.app/
+Nepal,en,body,a,benign,,www.daraz.com.np,,,1d8ab117b796f6173a96c3d3ecaf1cfb928c9b28,https://www.daraz.com.np/kids-bookcases/
+"9-Cube Bookshelf Organizer – DIY Closet Storage Cabinet for Books & Clothes, Multi-Layer Non-Woven Fabric Bookcase for Home & Office",en,body,div,benign,,www.daraz.com.np,,,bfb23310d58f8ced06a35eb62333f5dce8868bc2,https://www.daraz.com.np/kids-bookcases/
+Jeanswest,en,body,a,benign,,www.daraz.com.np,,,ee115e62344626c7284f53485691ec316daf2859,https://www.daraz.com.np/invisible-unisex-fashion-3/
+-24%,en,promo,span,benign,,www.daraz.com.np,false_urgency,discount_badge,fcc4be3dde3375233c29a939ebb47a166a5a59b5,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+50% Off Gems save Rs. 10,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,0a6820f1f8419a5b6b7616231ca0a919634a96c7,https://www.daraz.com.np/invisible-unisex-fashion-3/
+35% Off Gems save Rs. 11,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,e53bf4b2fb0e3ad17792bc8866a38b6cedfe0168,https://www.daraz.com.np/kids-bookcases/
+Korean Retro & Vintage Minimalist Party Athleisure Street Style Tropical Island Rock and Roll Military Nautical Office Preppy / Heritage,en,body,div,benign,,www.daraz.com.np,,,857d6256682fce69565ef6f205b3112455c4d50b,https://www.daraz.com.np/invisible-unisex-fashion-3/
+( 63 ),en,body,span,benign,,darkpattern-shop-frontend-rho.vercel.app,,,df70b03a104075b9a2e7602c41cc67385db8f2ec,https://darkpattern-shop-frontend-rho.vercel.app/
+48% Off Gems save Rs. 28,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,ecbb51a79f7aac5bd6c42ed81b27c624c501ecd5,https://www.daraz.com.np/kids-bookcases/
+(19),en,fine_print,div,benign,,www.daraz.com.np,,,26bb9bc51842c1025851c4bc96f368f68cb28540,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Warranty Period,en,body,div,benign,,www.daraz.com.np,,,8c64054101ece67e2ac21639badc9ac066a2ba9b,https://www.daraz.com.np/kids-bookcases/
+24% Off Gems save Rs. 11,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,159dc8a9816eb8aa2932a335d41e1828228f3037,https://www.daraz.com.np/kids-bookcases/
+ब्यट्री ब्याकअप कति घण्टा छ ? अनि ग्यरेन्टि वारेन्टि के छ ?,dev,body,div,benign,,www.daraz.com.np,,,e06cb7e80037dfda2eee1cd4ef664ce8a5dd7d4e,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+14 Days Free Returns,en,body,div,benign,,www.daraz.com.np,,,92b8d776bba9fa41394f0e0f3d81868ad0255041,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Rs. 5999,en,body,div,benign,,darkpattern-shop-frontend-rho.vercel.app,,,bf7257def01896ae50676887b9b32521f581a0fa,https://darkpattern-shop-frontend-rho.vercel.app/
+Gems save Rs. 9,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,0376ee35c5fffee8df5948592231b8cab89833c2,https://www.daraz.com.np/invisible-unisex-fashion-3/
+122 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,2bfde0824217832abd1f057286b02ecf447d53df,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Vans,en,label,label,benign,,www.daraz.com.np,,,da432fa49e3874dd6c28b461f3e5282ce9cee26a,https://www.daraz.com.np/invisible-unisex-fashion-3/
+15% Off,en,fine_print,div,benign,,www.daraz.com.np,,,8d78bd04ff9db3d8ff0cecf49abc27eb6c13c157,https://www.daraz.com.np/kids-bookcases/
+7 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,1248e548d365cd8c39c6e7b648ff2473b0fc1790,https://www.daraz.com.np/kids-bookcases/
+Party,en,label,label,benign,,www.daraz.com.np,,,7fb0f33d96993f43dc260b3014b15903c47995c2,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Street Style,en,label,label,benign,,www.daraz.com.np,,,3ecba67fd2e1ade41dd4490432c42c01c0462057,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Korean,en,label,label,benign,,www.daraz.com.np,,,6dc6ba1f8c07fd7fee178ceb3a7865e84788efeb,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Great Quality and absolutely lovely Trimmer xa. Charger ra sabai samman ramrari pugeko xan. delivery pani xitai bhayo. Dherai Ramro lagyo.,en,body,div,benign,,www.daraz.com.np,,,b75e6eff0cd7f9c0d0281f610d1289e5e3d9843c,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Beauty,en,cta,button,benign,,darkpattern-shop-frontend-rho.vercel.app,,,9bc60efeae2ede40e06e8aebd2035b446493fac6,https://darkpattern-shop-frontend-rho.vercel.app/
+10% Off,en,fine_print,span,benign,,www.daraz.com.np,,,ab19d1a956abd342e398f4b5e8c24296bf0d5de9,https://www.daraz.com.np/invisible-unisex-fashion-3/
+( 8 ),en,fine_print,span,benign,,www.daraz.com.np,,,178cec1e60c99e4b393a4fd7fb7813774b752f23,https://www.daraz.com.np/invisible-unisex-fashion-3/
+48 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,99b5944f9ca4d5ce98c91e100af3818a2c48c2a2,https://www.daraz.com.np/kids-bookcases/
+Bagmati Province,en,body,div,benign,,www.daraz.com.np,,,9331359d9e91e57a4888ffbb78b6b861fc62effb,https://www.daraz.com.np/kids-bookcases/
+196 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,8d98c32b2512d3b875bc52cb019138abd3cd3d76,https://www.daraz.com.np/kids-bookcases/
+21% Off,en,fine_print,div,benign,,www.daraz.com.np,,,d4f87b767b9f2a8a278033963522cbb94568d00e,https://www.daraz.com.np/kids-bookcases/
+( 7 ),en,fine_print,span,benign,,www.daraz.com.np,,,f0a536f02dfb0f21ed163bfb129ef14156d3cd08,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Organic Cotton,en,label,label,benign,,www.daraz.com.np,,,926afcbdb1b244120c8ebb8138a0b9719514bbc0,https://www.daraz.com.np/invisible-unisex-fashion-3/
+10% Off Gems save Rs. 19,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,5225dbaec2a05b0be855ef0a238fe3084de65025,https://www.daraz.com.np/invisible-unisex-fashion-3/
+31 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,843dc0a5c76d63109d6131507ff631f210ac5d70,https://www.daraz.com.np/invisible-unisex-fashion-3/
+4.1,en,body,span,benign,,darkpattern-shop-frontend-rho.vercel.app,,,4a048fed4a1be0c367ee755867264a573c47a709,https://darkpattern-shop-frontend-rho.vercel.app/
+Display Case,en,label,label,benign,,www.daraz.com.np,,,2162de0bd9b90fc883ade80dd5244de25b96701e,https://www.daraz.com.np/kids-bookcases/
+(13),en,fine_print,div,benign,,www.daraz.com.np,,,a6f61f667adf2590d5a43c3daf0dd0f59ec54b54,https://www.daraz.com.np/invisible-unisex-fashion-3/
+🔥 Today's deal price ends at midnight!,en,badge,span,false_urgency,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,false_urgency,,d993ee7d4e9f5a2f801cb86c38aaf5d3eac958ca,https://darkpattern-shop-frontend-rho.vercel.app/
+Light blue,en,label,label,benign,,www.daraz.com.np,,,eb16050b97a9c7a9b39e5cd0699360b5aa0dae80,https://www.daraz.com.np/kids-bookcases/
+"Rs. 2,500",en,body,div,benign,,www.daraz.com.np,,,7a75ed15b8d06e97ada65e2e91a5b57530fc6d4a,https://www.daraz.com.np/kids-bookcases/
+Sudurpashchim Province,en,label,label,benign,,www.daraz.com.np,,,f1ab21f08290663c20a946a3c85e695bf86dbce0,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Gems save Rs. 181,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,f8a62ff73f6cfc8c7565aac593c38789b9d57433,https://www.daraz.com.np/kids-bookcases/
+64 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,2c26f6cc141cd98e2c38ac7f233f961453385ce5,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Become a Seller,en,body,div,benign,,www.daraz.com.np,,,98be47469a549d808d70bb6651f1bf21f92f2935,https://www.daraz.com.np/kids-bookcases/
+8 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,b3c9b7cd014dc2cea9c8335f7a4c1b8499518903,https://www.daraz.com.np/kids-bookcases/
+Zip Up,en,label,label,benign,,www.daraz.com.np,,,7803dba1f4b9e36e83f506036e16f5105c218ffa,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"Rs. 1,143",en,body,div,benign,,www.daraz.com.np,,,06ffa8e37638f3525713127d049e54921920a428,https://www.daraz.com.np/kids-bookcases/
+SmartStorage 9-Cube Book Shelf: Plastic Bookcase for Efficient Organization,en,body,div,benign,,www.daraz.com.np,,,a7c0075b40da5bcf5955c1d4bf3dc7af34104ca3,https://www.daraz.com.np/kids-bookcases/
+Solid,en,label,label,benign,,www.daraz.com.np,,,54519181eb0eec76b56806fff375644a03f0e480,https://www.daraz.com.np/invisible-unisex-fashion-3/
+48% Off,en,fine_print,span,benign,,www.daraz.com.np,,,470f9cd27114750f7428d96ca03e559d0a3bea18,https://www.daraz.com.np/kids-bookcases/
+43% Off Gems save Rs. 86,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,2fb9a8a19dbec18d60e4891a072ede0b90aa68fb,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Men's Hoodies & Sweatshirts,en,body,a,benign,,www.daraz.com.np,,,dd9e94c57c7fee3951a7db329bed8d658eab53c2,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Plain,en,label,label,benign,,www.daraz.com.np,,,4743373d5ab0abb4af13dd459ba515fd406874b9,https://www.daraz.com.np/invisible-unisex-fashion-3/
+⚡ Mega Sale is LIVE -- prices this low won't be back. Shop now before it ends!,en,body,div,false_urgency,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,confirmshaming,,593fa2e60251b5e487901ab06993553da6e8d7b2,https://darkpattern-shop-frontend-rho.vercel.app/
+Toy Doll Accessories,en,body,a,benign,,www.daraz.com.np,,,01baf68b2c09fa826b042ae22692786da323b5da,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Blended,en,label,label,benign,,www.daraz.com.np,,,e5d9305576acbff9a84041f3aa07d24577ddbe6b,https://www.daraz.com.np/invisible-unisex-fashion-3/
+11% Off,en,fine_print,span,benign,,www.daraz.com.np,,,6199a86cc37fefed74b57ce7ddfb1b2228f92184,https://www.daraz.com.np/kids-bookcases/
+Pink,en,label,label,benign,,www.daraz.com.np,,,3263a8ae15610647ee6a5fca931bc45c40422986,https://www.daraz.com.np/kids-bookcases/
+Amrit Tamang - 03 Jun 2024,en,body,div,benign,,www.daraz.com.np,,,1513009789b9aa90bad08792042e077f0debec9e,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+( 3 ),en,fine_print,span,benign,,www.daraz.com.np,,,b8cd07a7162d18e3e90753dd51c5bd1bfe19132c,https://www.daraz.com.np/kids-bookcases/
+61 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,672cbffbeaed478e0a2522d00d0b6a04bf6c04b2,https://www.daraz.com.np/kids-bookcases/
+"8-Cube Storage Shelf – Versatile Organizer for Books, Decor, and More",en,body,div,benign,,www.daraz.com.np,,,88e5a8096d075d5ac15ee2592d0f245b5873c161,https://www.daraz.com.np/kids-bookcases/
+Loose fit,en,label,label,benign,,www.daraz.com.np,,,a817ff8ac3bdf1c1201bac515e2829a011779d5e,https://www.daraz.com.np/invisible-unisex-fashion-3/
+size,en,body,div,benign,,www.daraz.com.np,,,7a4c72e72652730cd1c4698a0baef34f49284738,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Summer Tide Baps Shark Zipper Unisex Hoodie,en,body,div,benign,,www.daraz.com.np,,,27e5708648d38b72f51ddbfe5bedb4052179adc4,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Women's Hoodies,en,body,a,benign,,www.daraz.com.np,,,18bf389cfa0b017df6eb36064bf1b2f67d858654,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"Rs. 1,599",en,body,div,benign,,www.daraz.com.np,,,14fd8a06639784651d69196977c109e0ce4d4f1e,https://www.daraz.com.np/kids-bookcases/
+Lavender,en,label,label,benign,,www.daraz.com.np,,,307d0a42c5029d77b5891260b02177268b0c55b2,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Kids Kindergarten Furniture Book Shelf Plastic Rack,en,body,div,benign,,www.daraz.com.np,,,5d60bc44caef70495162d8db87105e5d4ce2ee31,https://www.daraz.com.np/kids-bookcases/
+CloudFit Premium Membership,en,heading,h3,benign,,darkpattern-shop-frontend-rho.vercel.app,,,19f2b27f434b92dc1c85ffbb2c2069964f59d773,https://darkpattern-shop-frontend-rho.vercel.app/
+"Rs. 1,699",en,body,span,benign,,www.daraz.com.np,,,46c78b3aef1934f10f91bc7092089832dd1eb9c8,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+22% Off,en,fine_print,span,benign,,www.daraz.com.np,,,bbbba0592f3c5978b77260a604d99088a87098cb,https://www.daraz.com.np/kids-bookcases/
+Sign up to reveal price,en,body,p,forced_action,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,,,1daec57f84685e6d022a0d3988708fad561e0a7f,https://darkpattern-shop-frontend-rho.vercel.app/
+Download App,en,body,div,benign,,www.daraz.com.np,,,7a48fb2bf42081df0cae27e7938c94f73f5cbd1b,https://www.daraz.com.np/kids-bookcases/
+Sukuna Anime Printed Hoodie For Men And Women,en,body,div,benign,,www.daraz.com.np,,,ebdb321e2e47fcdaeac4def1eb619a038c358719,https://www.daraz.com.np/invisible-unisex-fashion-3/
+39 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,f7d0f1e8ac2871a5f4aecd006a1d6cb0d2caf45e,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Itachi Printed Fleece Sweatshirt Hoodie For Men & Women- Fashion | Sweatshirts | Clothes | For Men And Women |,en,body,div,benign,,www.daraz.com.np,,,66e36c86fe68d7dd1107b57f52573ef90042a131,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Fitness,en,cta,button,benign,,darkpattern-shop-frontend-rho.vercel.app,,,9b8c74350dd1b4e4bf12a8f9708112f965be8bfb,https://darkpattern-shop-frontend-rho.vercel.app/
+"Rs. 1,799",en,body,div,benign,,www.daraz.com.np,,,991da7d7763a1313d4e3e01eb4c50e0bebe0f386,https://www.daraz.com.np/kids-bookcases/
+Plastic,en,label,label,benign,,www.daraz.com.np,,,19cddc2d8b3d8e0ea61acf87d1f6fabae4884685,https://www.daraz.com.np/kids-bookcases/
+6% Off,en,fine_print,div,benign,,www.daraz.com.np,,,11351d3691bf11e565b1d4aac76502a6e3ce1c86,https://www.daraz.com.np/kids-bookcases/
+Kids' Hoodies,en,body,a,benign,,www.daraz.com.np,,,0ded037371233d14f6d3394e89239a453885837a,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"Rs. 4,080",en,body,div,benign,,www.daraz.com.np,,,aec243d20e898b6b1878874af4e8aabcd7b3042f,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Action Figures,en,body,a,benign,,www.daraz.com.np,,,73f6831db6c42ca69da7f3da6a9156da975668d0,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Only 2 left in stock!,en,badge,span,scarcity,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,scarcity,stock_counter,cbc2098f8a4baca6680e1891869088d392998ba4,https://darkpattern-shop-frontend-rho.vercel.app/
+Poly-cotton,en,label,label,benign,,www.daraz.com.np,,,aa2b42f2c28ed64f8e78a82f9332dc1e8c62a7f2,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"Rs. 1,890",en,body,div,benign,,www.daraz.com.np,,,b7b763365f68c6153f7967e3822ac5c0fda54ae6,https://www.daraz.com.np/kids-bookcases/
+Ressence Enterprises,en,body,a,benign,,www.daraz.com.np,,,83040fe1195c1ab21db6c8624f99bc88aaefe6fd,https://www.daraz.com.np/kids-bookcases/
+Free Delivery,en,label,label,benign,,www.daraz.com.np,,,91acb4b99524895a39967bf8b00ebfcff1338634,https://www.daraz.com.np/kids-bookcases/
+Unisex Winter Warm Cotton Fleece Plain Hoodies . - Fashion | Hoodies For Men And Women | Winter Wear |,en,body,div,benign,,www.daraz.com.np,,,207e2348872defc61da8a2bead27632345ba6ee3,https://www.daraz.com.np/invisible-unisex-fashion-3/
+126 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,574af3bc23de23fc69f2cd2c038f84d8fb6ff6bb,https://www.daraz.com.np/kids-bookcases/
+Creative Touch,en,body,a,benign,,www.daraz.com.np,,,9d65428d13586836c50c2c938c7e64e79bfe78d3,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Itachi Anime Combo Printed Hoodie And Trouser For Men And Women,en,body,div,benign,,www.daraz.com.np,,,571cb3eab321f54510f30df06bc72f961f59e99f,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"DIY Adjustable Bookcase: 9 Shelves, Multipurpose Home Furniture Storage",en,body,div,benign,,www.daraz.com.np,,,c8d04f9a185c0bec2945aaedde2ac1c011b2853b,https://www.daraz.com.np/kids-bookcases/
+10% Off Gems save Rs. 59,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,92dc08669b91eef171e85a8cf3f383dbe6c70e5f,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Anime Printed Hoodie For Men And Women,en,body,div,benign,,www.daraz.com.np,,,038c2bdb41a8b010696bcba2f5a9cda61fed8d73,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"Rs. 2,750",en,body,div,benign,,www.daraz.com.np,,,3a76c845559c39b1bfd4df49768b7427616cd4ab,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Portable bookshelf folding racks,en,body,div,benign,,www.daraz.com.np,,,d9bb4c38866339a29ff8034b51f3c49c5c23b7c4,https://www.daraz.com.np/kids-bookcases/
+Dark Grey,en,label,label,benign,,www.daraz.com.np,,,87329488a0efcd2c9cf22ef5554e250cf3cff459,https://www.daraz.com.np/invisible-unisex-fashion-3/
+33% Off Gems save Rs. 19,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,65144fc74c8d16cf958bf5ea31781000badf3720,https://www.daraz.com.np/kids-bookcases/
+(16),en,fine_print,div,benign,,www.daraz.com.np,,,895597662f40dab9970e464164a257838cbcfd9c,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Tool Sets,en,body,a,benign,,www.daraz.com.np,,,e1aa0d10d736dc25ef01b9fc54979204ce1a0ad2,https://www.daraz.com.np/kids-bookcases/
+( 48 ),en,fine_print,span,benign,,www.daraz.com.np,,,c7d52104f75cdc8291c9d270723c3a0e5c324700,https://www.daraz.com.np/kids-bookcases/
+Ratings 1832,en,body,a,benign,,www.daraz.com.np,,,4c30e6649f9ba80e01f7c69c31df2be8cc99137a,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+10% Off Gems save Rs. 13,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,02d878af00cd9757112b7dddd80ec711f9fa8513,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Delivery Options,en,body,div,benign,,www.daraz.com.np,,,8b13f6c194b17949fa3ffa94c9b96b364fbd5461,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Grey,en,label,label,benign,,www.daraz.com.np,,,11dfe536833ae101df1f321d6dc986e117d46545,https://www.daraz.com.np/kids-bookcases/
+Filter :,en,body,span,benign,,www.daraz.com.np,,,4f78c67acb58ad9c034dd128963793350cb908e9,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+( 39 ),en,fine_print,span,benign,,www.daraz.com.np,,,8470883a747e4089c4183bf6afab5ada3a955bf4,https://www.daraz.com.np/kids-bookcases/
+1832 Ratings,en,body,div,benign,,www.daraz.com.np,,,4bcadba935280ccf37b0eef70620e3c91856d20d,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+⚡ Flash Sale ends today!,en,badge,span,false_urgency,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,false_urgency,,629e1e3b88e6b31e11066b87ba8d262079858511,https://darkpattern-shop-frontend-rho.vercel.app/
+Sexy,en,label,label,benign,,www.daraz.com.np,,,297012f91c7f25279b588d0f8d72273282aa1944,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"Rs. 1,169",en,body,div,benign,,www.daraz.com.np,,,cb0d9662a02d51b324d723cbed9c9334310c4f8b,https://www.daraz.com.np/kids-bookcases/
+Gems save Rs. 30,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,6bfec81d30cb92bcffa5370a374bee9305336a25,https://www.daraz.com.np/invisible-unisex-fashion-3/
+( 14 ),en,fine_print,span,benign,,www.daraz.com.np,,,ac72b7a7722a27b81e67d80f9edd20f59b98ce76,https://www.daraz.com.np/invisible-unisex-fashion-3/
+ANTA,en,label,label,benign,,www.daraz.com.np,,,6a480c6212305ee9efe49f8495537e382ee67c51,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Rs. 7999,en,body,div,benign,,darkpattern-shop-frontend-rho.vercel.app,,,15969088bf9e4f300a0c89c12e8b040e61e013b4,https://darkpattern-shop-frontend-rho.vercel.app/
+Metal,en,label,label,benign,,www.daraz.com.np,,,f8a41307b88f8d4dc3ee63ebe84dd3d75a3be34c,https://www.daraz.com.np/kids-bookcases/
+"Multi-Tier Bookshelf: Creative Storage for Books, Plants, and More - DIY Cabinet - Children's Bookcase (Random Color)",en,body,div,benign,,www.daraz.com.np,,,a47b931e6d0db26ab3fe914c61ccb828bba5c828,https://www.daraz.com.np/kids-bookcases/
+Brand: VGR,en,body,li,benign,,www.daraz.com.np,,,1f4d901c6f6f721cf2a843ee21343119a224e813,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+50 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,9476475003017a67416271918a67dce6f94ee219,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Rs. 999,en,body,div,benign,,darkpattern-shop-frontend-rho.vercel.app,,,65d45757419cb30f651a44f51ca8708d7db3688a,https://darkpattern-shop-frontend-rho.vercel.app/
+35% Off,en,fine_print,span,benign,,www.daraz.com.np,,,9346e06f29df92ce879f9879a3f4d54a712478eb,https://www.daraz.com.np/kids-bookcases/
+Color family,en,body,div,benign,,www.daraz.com.np,,,d3bfd5172d99556da5772f197411afcba01b284f,https://www.daraz.com.np/kids-bookcases/
+Acrylic Wool,en,label,label,benign,,www.daraz.com.np,,,4d83c6885caabf3bf12ea6451976136e5bde9433,https://www.daraz.com.np/invisible-unisex-fashion-3/
+"Rs. 1,839",en,body,div,benign,,www.daraz.com.np,,,71cc0c567fb2a285506ae1f0cfb4fe69b9d0e1e6,https://www.daraz.com.np/kids-bookcases/
+Kitchen Organizers,en,body,a,benign,,www.daraz.com.np,,,c5c63ea37bed9c5f0b480417863aeacf7dffc003,https://www.daraz.com.np/kids-bookcases/
+Material,en,body,div,benign,,www.daraz.com.np,,,597b43a17dc096565591f20bac81edd39a0dd4c2,https://www.daraz.com.np/kids-bookcases/
+"Rs. 2,847",en,body,div,benign,,www.daraz.com.np,,,977e66a15227127a41fe8f40ccb160c4ca5e882b,https://www.daraz.com.np/kids-bookcases/
+Messages,en,body,div,benign,,www.daraz.com.np,,,f348a34944881ea8057e90251d23f4acf5f0c0f2,https://www.daraz.com.np/kids-bookcases/
+"4 Layers Bookshelf Storage Shelve, Book Rack for Books Storage Organizer Children Book Rack Bookcase for Home Furniture Cabinet Shelves",en,body,div,benign,,www.daraz.com.np,,,fe18990b9d38d2ab87d374af22f46fd3f7be99ee,https://www.daraz.com.np/kids-bookcases/
+37% Off Gems save Rs. 30,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,982b099ad8ca6308121fa18a0e851814d5a4c525,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Nissan,en,label,label,benign,,www.daraz.com.np,,,48dea35e37dcf1c738b87bc9a67d694cf65bc828,https://www.daraz.com.np/invisible-unisex-fashion-3/
+1 2 3 4 ... 367,en,body,div,benign,,www.daraz.com.np,,,e5ce052b731f75354d185c7f7f647796b073d567,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Help & Support,en,body,span,benign,,www.daraz.com.np,,,6f44fa594a3d1891259f2295aa0f8efaab351f28,https://www.daraz.com.np/kids-bookcases/
+Overseas,en,fine_print,span,benign,,www.daraz.com.np,,,7c9a98a90937b5a24dcdafb30477f45f9f11f1fe,https://www.daraz.com.np/kids-bookcases/
+"Rs. 1,299",en,body,div,benign,,www.daraz.com.np,,,a567b3cbeddc591cb2551e4ae32dd0c6bfa808f2,https://www.daraz.com.np/kids-bookcases/
+151 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,7efe2ea4da14098a707510334f75494be0ac97eb,https://www.daraz.com.np/invisible-unisex-fashion-3/
+9 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,64c2668c4db68e40b8bee7bb9bf1bd55cfa1fb06,https://www.daraz.com.np/kids-bookcases/
+Iron,en,label,label,benign,,www.daraz.com.np,,,e579e411414e2571afa65851a895129e5e1e919d,https://www.daraz.com.np/kids-bookcases/
+Return & Warranty,en,body,div,benign,,www.daraz.com.np,,,b8c4364cfeeedc26926bfc02d14d82003913f471,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Binay Embroidery Multi color Plane Sweatshirt Hoodie For Men & Women - Fashion | Hoodies | Men's Wear | Unisex |,en,body,div,benign,,www.daraz.com.np,,,2f3fffd88621b519988e89c925bcec81a54c31b5,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Net Silk,en,label,label,benign,,www.daraz.com.np,,,fcaea484b03c3e1e8937307963342da9c753ce27,https://www.daraz.com.np/invisible-unisex-fashion-3/
+29 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,d845f2c43e591cb4c9f84669bb99c2c32017b787,https://www.daraz.com.np/kids-bookcases/
+Luffy Anime Printed Sweatshirt For Men And Women,en,body,div,benign,,www.daraz.com.np,,,b24795854dd2c3da7058beeb21427f173884d083,https://www.daraz.com.np/invisible-unisex-fashion-3/
+MDF,en,label,label,benign,,www.daraz.com.np,,,debabd68d95161aa29fb5e71f854c2af7bc05ea8,https://www.daraz.com.np/kids-bookcases/
+Gems save Rs. 221,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,a41df6d86117d6adb0025b5c96733fb366ad2339,https://www.daraz.com.np/kids-bookcases/
+Delivery Option Standard,en,body,div,benign,,www.daraz.com.np,,,80147334d79b70eead1626758afb2fd35fb66f47,https://www.daraz.com.np/kids-bookcases/
+Erke Pullover Hoodie Red For Unisex 11219314388-202,en,body,div,benign,,www.daraz.com.np,,,e2c9aa33a14b8a7d3b5fd88f43cd112e9c55301c,https://www.daraz.com.np/invisible-unisex-fashion-3/
+25 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,19576a7a76f3ffd3a76d57b3f3d337a50432f712,https://www.daraz.com.np/kids-bookcases/
+Shaving & Grooming,en,body,li,benign,,www.daraz.com.np,,,27fab59c1dd7c736e061b778b30175a6dc98c883,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Daraz Customer University,en,body,li,benign,,www.daraz.com.np,,,7202c50bf1e6f54841c748fe9e088e9253ad0f54,https://www.daraz.com.np/kids-bookcases/
+And Up,en,body,span,benign,,www.daraz.com.np,,,e4967dc3559a1df3db9400138bbe92c9cff033b0,https://www.daraz.com.np/kids-bookcases/
+5 sold Bagmati Province,en,body,div,benign,,www.daraz.com.np,scarcity,,c886420271395235609a220e2a7b3c20c4d3bdd7,https://www.daraz.com.np/kids-bookcases/
+Wine Bottle Storage,en,label,label,benign,,www.daraz.com.np,,,87f1da206c2d3f75d42b1e833bd58565274d389f,https://www.daraz.com.np/kids-bookcases/
+Bagmati Province,en,fine_print,span,benign,,www.daraz.com.np,,,37512b8c57a20766c62cef7af9fd78a2802369a1,https://www.daraz.com.np/kids-bookcases/
+E-SPARK - Answered within 12 minutes,en,body,div,benign,,www.daraz.com.np,,,8c8a8640fd6b158c171439556cdadfb44d2af590,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Document Racks,en,label,label,benign,,www.daraz.com.np,,,ce2438994e39989ebe8304c9345a823710e4303a,https://www.daraz.com.np/kids-bookcases/
+(15),en,fine_print,div,benign,,www.daraz.com.np,,,9d513da32a7766ceb0b9ba2caf8a246d704911a2,https://www.daraz.com.np/kids-bookcases/
+"Rs. 1,249",en,body,div,benign,,www.daraz.com.np,,,85747c7957bde6458563f20b493b48736e4b0ef2,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Gems save Rs. 18,en,fine_print,span,benign,,www.daraz.com.np,sneaking,,2b6ad715b0fb9b6033a4bc3e658289cada05a9ab,https://www.daraz.com.np/kids-bookcases/
+Recommended Age,en,body,div,benign,,www.daraz.com.np,,,73a5e37e960c7e7b4ae1789dbf86e34caefe1054,https://www.daraz.com.np/kids-bookcases/
+(3),en,fine_print,div,benign,,www.daraz.com.np,,,ad44daff4535b1858fafc107e743293b84f594bc,https://www.daraz.com.np/kids-bookcases/
+shoes for men iphone 17 pro max mobile phone earbuds laptop,en,body,div,benign,,www.daraz.com.np,,,81da82451741a68d608daf49733bc87a787c22f6,https://www.daraz.com.np/kids-bookcases/
+Tees Anime Hoodies for Men and Women Porsche 911 Design Hoodie Unisex Pure Cotton Casual Wear Hood Black Sweatshirt,en,body,div,benign,,www.daraz.com.np,,,89a409af1261362304037e61dce057fa51dd5b67,https://www.daraz.com.np/invisible-unisex-fashion-3/
+41% Off Gems save Rs. 9,en,fine_print,div,benign,,www.daraz.com.np,sneaking,,e5174abb2646d1355a2a8bc7342f00c515acc92c,https://www.daraz.com.np/invisible-unisex-fashion-3/
+(2),en,fine_print,div,benign,,www.daraz.com.np,,,cdfafab8c6127aadba5ebe7b07d85971e8b8dccb,https://www.daraz.com.np/kids-bookcases/
+Ends in 08:35:10,en,timer,span,false_urgency,LLM-annotated,darkpattern-shop-frontend-rho.vercel.app,false_urgency,,55c91dc315719bf83a8dd75873be648c943acb17,https://darkpattern-shop-frontend-rho.vercel.app/
+Reebok,en,body,a,benign,,www.daraz.com.np,,,0cb9c11fa051c7d97b664e230def5a527e7b7ec2,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Ends in days,en,timer,time,false_urgency,LLM-annotated,www.daraz.com.np,,,1d0845ec1f05abbc0d603c90ed2c307c96e58908,https://www.daraz.com.np/products/vgr-071-professional-hair-trimmer-rechargeable-for-men-i128298818-s1035871433.html
+Violet,en,label,label,benign,,www.daraz.com.np,,,86ae373cac787230ad7dab3871b968651f72be66,https://www.daraz.com.np/kids-bookcases/
+22 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,0c4543cf89eeaec942cab0b23d9aab2777050ec6,https://www.daraz.com.np/invisible-unisex-fashion-3/
+20 sold,en,body,span,benign,,www.daraz.com.np,scarcity,,0f25c47464cf0312c29891229b49665cf3497fbb,https://www.daraz.com.np/invisible-unisex-fashion-3/
+XS S M L XL XXL XXXL,en,body,div,benign,,www.daraz.com.np,,,d6c14936463cecf3299bb363a582f915922a66a8,https://www.daraz.com.np/invisible-unisex-fashion-3/
+Yes No,en,body,div,benign,,www.daraz.com.np,,,0312cf55fddd34273f0b679a9aa8c16ef27275ab,https://www.daraz.com.np/kids-bookcases/
+Bookcases & Shelving,en,body,a,benign,,www.daraz.com.np,,,cd83ed6f4e0cd6b6950666f6c66c413153dee17c,https://www.daraz.com.np/kids-bookcases/
+Creative Touch,en,label,label,benign,,www.daraz.com.np,,,6834eeb9d32670be71d4bf986fe392f966092684,https://www.daraz.com.np/invisible-unisex-fashion-3/

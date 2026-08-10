@@ -54,6 +54,7 @@ RULE_LABELS: dict[str, str] = {
     "cancel_offsite": "obstruction",
     "discount_badge": "false_urgency",
     "forced_action_gate": "forced_action",
+    "recent_activity": "social_proof",
 }
 
 
@@ -91,6 +92,15 @@ def score(
 
     macro = sum(v[2] for v in per_class.values()) / len(DARK_LABELS)
 
+    # A class with no gold examples contributes F1 = 0 to the average no matter
+    # how the model behaves, so on a small real-site sample -- where several
+    # classes legitimately never occur -- the all-classes macro is bounded well
+    # below 1 and says more about the sample than the model. Both are reported:
+    # the all-classes figure for comparability with the synthetic numbers, and
+    # this one for what the sample can actually support.
+    supported = [v[2] for v in per_class.values() if v[3] > 0]
+    macro_supported = sum(supported) / len(supported) if supported else 0.0
+
     by_lang: dict[str, float] = {}
     for lang in sorted(set(langs)):
         idx = [i for i, ln in enumerate(langs) if ln == lang]
@@ -102,10 +112,12 @@ def score(
             f1s.append(prf(tp, fp, fn)[2])
         by_lang[lang] = sum(f1s) / len(DARK_LABELS)
 
-    return per_class, macro, by_lang
+    return per_class, macro, by_lang, macro_supported
 
 
-def print_table(title: str, per_class, macro: float, by_lang: dict[str, float]) -> None:
+def print_table(
+    title: str, per_class, macro: float, by_lang: dict[str, float], macro_supported: float
+) -> None:
     print(f"\n=== {title}")
     print(f"{'label':<17}{'prec':>8}{'rec':>8}{'f1':>8}{'support':>9}")
     print("-" * 50)
@@ -113,15 +125,85 @@ def print_table(title: str, per_class, macro: float, by_lang: dict[str, float]) 
         p, r, f1, support = per_class[label]
         print(f"{label:<17}{p:>8.3f}{r:>8.3f}{f1:>8.3f}{support:>9}")
     print("-" * 50)
-    print(f"{'macro-F1 (dark)':<17}{'':>8}{'':>8}{macro:>8.3f}")
+    n_supported = sum(1 for v in per_class.values() if v[3] > 0)
+    print(f"{'macro-F1 (all 7)':<17}{'':>8}{'':>8}{macro:>8.3f}")
+    print(
+        f"{'macro-F1 (support)':<17}{'':>8}{'':>8}{macro_supported:>8.3f}"
+        f"   over the {n_supported} class(es) present in the gold set"
+    )
     print()
     for lang, f1 in by_lang.items():
         print(f"  macro-F1, {lang:<4} {f1:.3f}")
 
 
+def write_errors(
+    path: Path,
+    rows: list[dict[str, str]],
+    gold: list[set[str]],
+    pred: list[set[str]],
+) -> tuple[int, int]:
+    """Dump every disagreement, one row per (row, label), for categorising by hand.
+
+    The Stage 4 exit criteria ask for 30 false positives and 30 false negatives
+    *categorised*. Aggregate precision and recall cannot support that -- they say
+    how many were wrong, never which ones -- so this writes the actual rows with
+    an empty `error_category` column to fill in.
+
+    Split per label rather than per row: one snippet can be a false positive for
+    scarcity and a false negative for social_proof simultaneously, and those are
+    two different mistakes with two different explanations.
+    """
+    out: list[dict[str, str]] = []
+    for row, g, p in zip(rows, gold, pred):
+        for label in sorted(p - g):
+            out.append({"kind": "false_positive", "label": label, **_error_row(row, g, p)})
+        for label in sorted(g - p):
+            out.append({"kind": "false_negative", "label": label, **_error_row(row, g, p)})
+
+    fields = [
+        "kind",
+        "label",
+        "text",
+        "lang",
+        "role",
+        "gold_labels",
+        "predicted_labels",
+        "rule_hits",
+        "error_category",  # <- fill in by hand
+        "host",
+    ]
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(out)
+
+    fps = sum(1 for r in out if r["kind"] == "false_positive")
+    return fps, len(out) - fps
+
+
+def _error_row(row: dict[str, str], gold: set[str], pred: set[str]) -> dict[str, str]:
+    return {
+        "text": row.get("text", ""),
+        "lang": row.get("lang", ""),
+        "role": row.get("role", ""),
+        "gold_labels": " ".join(sorted(gold)) or "benign",
+        "predicted_labels": " ".join(sorted(pred)) or "benign",
+        "rule_hits": row.get("rule_hits", ""),
+        "error_category": "",
+        "host": row.get("host", ""),
+    }
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Evaluate the model against the gold set")
     ap.add_argument("gold_csv", type=Path)
+    ap.add_argument(
+        "--errors",
+        type=Path,
+        default=None,
+        metavar="CSV",
+        help="Also write every false positive and false negative here, for error analysis",
+    )
     args = ap.parse_args()
 
     if not args.gold_csv.is_file():
@@ -182,16 +264,24 @@ def main() -> int:
     print(f"gold rows annotated: {len(rows)}")
     print(f"bundle:              {bundle.describe()}")
 
-    mo_per_class, mo_macro, mo_lang = score(gold, model_only, langs)
-    print_table("model only", mo_per_class, mo_macro, mo_lang)
+    mo_per_class, mo_macro, mo_lang, mo_sup = score(gold, model_only, langs)
+    print_table("model only", mo_per_class, mo_macro, mo_lang, mo_sup)
 
-    mg_per_class, mg_macro, mg_lang = score(gold, merged, langs)
-    print_table("model + rules (what ships)", mg_per_class, mg_macro, mg_lang)
+    mg_per_class, mg_macro, mg_lang, mg_sup = score(gold, merged, langs)
+    print_table("model + rules (what ships)", mg_per_class, mg_macro, mg_lang, mg_sup)
+
+    if args.errors is not None:
+        # Errors of what ships, not of the model in isolation -- the rule layer
+        # is part of the product, and an error the user never sees is not one
+        # worth an annotator's time categorising.
+        fps, fns = write_errors(args.errors, rows, gold, merged)
+        print(f"\nwrote {fps} false positive(s) and {fns} false negative(s) to {args.errors}")
+        print("Fill the `error_category` column to complete the Stage 4 error analysis.")
 
     print("\n=== rule ablation")
-    print(f"  macro-F1 model only        {mo_macro:.3f}")
-    print(f"  macro-F1 model + rules     {mg_macro:.3f}")
-    print(f"  delta                      {mg_macro - mo_macro:+.3f}")
+    print(f"  macro-F1 model only        {mo_macro:.3f}   (support-only {mo_sup:.3f})")
+    print(f"  macro-F1 model + rules     {mg_macro:.3f}   (support-only {mg_sup:.3f})")
+    print(f"  delta                      {mg_macro - mo_macro:+.3f}   ({mg_sup - mo_sup:+.3f})")
     print()
     print("Compare the macro-F1 above against the synthetic test figure in")
     print("docs/RESULTS.md section 3. A drop is expected and is the finding --")

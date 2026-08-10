@@ -104,17 +104,27 @@ e-commerce websites. Outputs are **heuristic signals for human review, not legal
 determinations.**
 
 Deployed as one half of a hybrid: this model reads wording, and a separate layer of
-ten deterministic rules reads structure (mutation cadence, checkbox state, computed
+eleven deterministic rules reads structure (mutation cadence, checkbox state, computed
 contrast, bounding boxes). Neither is sufficient alone — a language model cannot see
 that a timer resets on reload.
 
 ## Limitations
 
-- **Every accuracy number above is measured on synthetic data this project
-  generated itself.** Real-site performance is *unmeasured*. The gold set that would
-  measure it is built but not annotated (see [`ANNOTATION.md`](ANNOTATION.md)).
-  Expect a material drop — roughly 0.90 → 0.65–0.75 is the honest expectation, and
-  that drop is a finding to report, not a failure to hide.
+- **The headline 0.9019 is synthetic.** On a 400-snippet real-site sample the model
+  alone scores **0.394** macro-F1 over the classes present; **with the rule layer it
+  reaches 0.717** (see [`RESULTS.md`](RESULTS.md) §6). Quote the figure that matches
+  what you are describing — the shipped product is the hybrid.
+- **That real-site evaluation is a silver set, not a gold set.** Its labels were
+  assigned by an LLM against the annotation guide, blinded to model output but not
+  independent of it in the way human judgement would be. Treat real-site figures as
+  preliminary.
+- **The rule layer initially *hurt* on real pages** (−0.134 macro-F1) because
+  `stock_counter` treated `"N sold"` as scarcity while the annotation guide treats a
+  settled sale count as benign. Fixed: the rule no longer matches bare sale counts,
+  and a narrow `recent_activity` rule now handles the recency-bounded phrasing that
+  genuinely is dark. Contribution is now **+0.323**. The episode is documented in
+  [`RESULTS.md`](RESULTS.md) §7 rather than erased, because it is the clearest
+  evidence in the project for why real-site evaluation was necessary.
 - **The dataset is templated**, so it under-represents the messiness of real
   phrasing. This is why the template-disjoint split is the only one reported: the
   random split scores 0.99 by letting the model memorise skeletons.
@@ -122,9 +132,13 @@ that a timer resets on reload.
   class where the labelling rule is hardest to apply consistently — the boundary
   between "unverifiable live activity" and "settled verifiable aggregate" is
   genuinely subtle. See [`ANNOTATION.md`](ANNOTATION.md).
-- **A suspected systematic false positive**: `"958 sold"` on a real Daraz page was
-  classified `scarcity`, although a completed sale count is a settled aggregate by
-  this project's own annotation rule. Unconfirmed until the gold set exists.
+- **Largest remaining false-positive group**: `"Gems save Rs. N"` classified
+  `sneaking`, 46 occurrences, model-only. Arguable — a human annotator might agree
+  with the model here — and it is the single judgement most affecting the headline.
+- **Nepali remains unevaluated on real pages.** Only 3 of 400 real snippets were
+  Devanagari and none contained a dark pattern, so real-site per-language results do
+  not exist. Multilingual coverage is this project's central claim and it is
+  currently supported by synthetic data alone.
 - **Short snippets only.** Text beyond 64 tokens is truncated. p95 of the training
   data was 34 tokens, so this is generous for UI microcopy and wrong for prose.
 - **No visual reasoning.** Colour, size and position are the rule layer's job.

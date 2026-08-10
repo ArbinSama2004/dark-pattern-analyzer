@@ -159,6 +159,34 @@ class ObjectStore:
         except Exception as exc:  # noqa: BLE001 - re-raised as typed error
             raise ObjectStoreError(f"could not read object {key!r}: {exc}") from exc
 
+    def list_keys(self, prefix: str = "traces/") -> list[str]:
+        """Every object key under ``prefix``, paginated.
+
+        Deliberately reads the bucket rather than the SQLite index: the index is
+        derived data that can be deleted or fall behind, and the point of this
+        method is to recover traces from the store itself. Prefix listing is the
+        one query S3 does cheaply, which is why the key layout puts host first
+        (see build_object_key).
+        """
+        client = self._get_client()
+        keys: list[str] = []
+        token: str | None = None
+        try:
+            while True:
+                kwargs: dict[str, object] = {"Bucket": self._config.bucket, "Prefix": prefix}
+                if token:
+                    kwargs["ContinuationToken"] = token
+                response = client.list_objects_v2(**kwargs)
+                keys.extend(item["Key"] for item in response.get("Contents", []))
+                if not response.get("IsTruncated"):
+                    break
+                token = response.get("NextContinuationToken")
+        except Exception as exc:  # noqa: BLE001 - re-raised as typed error
+            raise ObjectStoreError(
+                f"could not list objects under {prefix!r}: {exc}", retryable=True
+            ) from exc
+        return keys
+
 
 __all__ = [
     "ObjectStore",

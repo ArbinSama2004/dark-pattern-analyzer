@@ -328,41 +328,235 @@ this table is the number to quote rather than the budget.
 
 ---
 
-## 6. Real-site gold set (Stage 4)
+## 6. Real-site silver set (Stage 4)
 
-**The honest evaluation.** Hand-annotated snippets from live sites. Not yet collected.
+> **Read this first: these labels were produced by an LLM, not a human.**
+>
+> The reference labels below were assigned by Claude (Opus 4.5) reading each snippet
+> against `docs/ANNOTATION.md`, because human annotation time was not available. That
+> makes this a **silver set**, not a gold set, and the distinction is not pedantic:
+>
+> * The annotator and the system under evaluation are **both language models**. They
+>   may share systematic blind spots in a way two humans would not, so agreement is
+>   not independent evidence in the way a human gold set is.
+> * The annotator was blinded — `model_labels` and `rule_hits` were stripped from the
+>   sheet before it was read, so the labels are not anchored on the model's output —
+>   but blinding removes anchoring, not correlated error.
+> * **Any claim of real-world accuracy resting on this table should be stated as
+>   preliminary.** A human-labelled subset, even 100 rows, would materially strengthen
+>   it and is the single highest-value remaining task in the project.
 
 | | Value |
 |---|---|
-| sites | |
-| snippets | |
-| annotators | |
-| Cohen's kappa (100-item overlap) | |
+| sites | 2 (`www.daraz.com.np`, a purpose-built demo shop) |
+| pages | 5 captures |
+| candidates extracted | 2,205 |
+| unique after dedupe | 1,050 |
+| snippets labelled | **400** |
+| annotator | **1, and it was an LLM** — see above |
+| Cohen's kappa (100-item overlap) | **not measurable — single annotator** |
 
-| Metric | synthetic test | real gold | gap |
+**On the missing kappa.** Inter-annotator agreement needs two annotators labelling an
+overlapping subset independently. There is one. Reporting kappa is therefore
+impossible rather than merely skipped. What that costs: there is no measure of how
+much of the error rate below is model failure versus genuine ambiguity in the
+labelling rules — and section 7 shows that ambiguity is doing real work here.
+
+### Results
+
+Measured with `make gold-eval` against the shipped `precision` threshold profile.
+
+| Metric | synthetic test | real silver set | gap |
 |---|---|---|---|
-| macro-F1 (dark) | 0.9019 | | |
+| macro-F1, model only, all 7 classes | 0.9019 | **0.225** | **−0.677** |
+| macro-F1, model only, supported classes | — | **0.394** | — |
+| macro-F1, model + rules, supported classes | — | **0.717** | — |
 
-Expect roughly 0.90 falling to 0.65-0.75. That drop is the finding, not a failure. It
-quantifies synthetic-to-real distribution shift, which is exactly the limitation a
-reviewer will ask about. Reporting it with per-class analysis is stronger work than a
-suspiciously clean 0.99.
+The model-plus-rules figure is **after** the `stock_counter` fix described in section 7.
+Before it, the same measurement was 0.260 — the rule layer was actively harmful. That
+before/after is the most useful single result in this document, so section 7 keeps
+both numbers rather than quietly reporting the better one.
 
-This is also where the transformer-versus-baseline tie gets resolved. If the transformer
-reads context rather than memorising templates, its advantage over TF-IDF should **widen**
-on real text. Run the baseline on the gold set too.
+**Two macro figures, because one of them is misleading on its own.** Three of the
+seven classes (`confirmshaming`, `obstruction`, `sneaking`) have **zero** examples in
+this sample — real Daraz listing pages simply do not contain confirmshaming. A class
+with no gold examples contributes F1 = 0 regardless of model behaviour, so the
+all-classes macro is arithmetically capped at 4/7 = 0.571 here. It is reported for
+comparability with the synthetic number; the supported-class figure is what this
+sample can actually speak to.
+
+### Per class
+
+| Class | model only | model + rules | support |
+|---|---:|---:|---:|
+| false_urgency | **0.909** | 0.870 | 12 |
+| scarcity | 0.667 | **1.000** | 4 |
+| social_proof | 0.000 | **1.000** | 1 |
+| forced_action | 0.000 | 0.000 | 1 |
+| confirmshaming / obstruction / sneaking | — | — | **0** |
+
+(F1. Model-only precision/recall: false_urgency 1.000/0.833, scarcity 1.000/0.500.)
+
+`false_urgency` transfers to real pages **well** — perfect precision on twelve real
+Daraz countdown timers, from the model alone. That is the class the hard negatives in
+dataset v2 were added to fix (section 3), and it is the one that held up.
+
+`scarcity` and `social_proof` reach 1.000 only **with** the rule layer, and only after
+the fix in section 7. `forced_action` is still missed entirely, on a support of one
+row — an anecdote, not a measurement.
+
+### On the predicted gap
+
+This document expected "roughly 0.90 falling to 0.65–0.75". The **model alone** lands
+at 0.394 — well below that. **With the corrected rule layer it reaches 0.717**, inside
+the predicted band.
+
+The prediction was right about the destination and wrong about the route: the
+degradation was never diffuse, and the hybrid architecture is what closes it. Section
+7 shows the loss was two specific, identifiable behaviours, one of which was a defect
+in this project's own rules rather than a limitation of the model.
+
+### Caveats that bound this number
+
+1. **Two hosts, one product domain.** Mostly bookshelf and hoodie listing pages. Not a
+   sample of "e-commerce".
+2. **397 of 400 rows are English.** The per-language table is not reportable: the
+   three Devanagari rows contain no dark patterns, so Nepali macro-F1 reads 0.000 and
+   means nothing. **Nepali is the project's central claim and it remains unevaluated
+   on real pages.**
+3. **Small per-class support.** Twelve rows is the largest class. Per-class F1 at this
+   support moves by ~0.08 per single row.
+4. **The base rate is low and real.** 17 dark rows in 400 (4.3%). Real pages are mostly
+   boilerplate; this is what makes precision, not recall, the metric that matters.
 
 ---
 
 ## 7. Error analysis
 
-Not yet done systematically. Two known label collisions, confirmed as correct behaviour
-rather than defects:
+The first evaluation produced **89 false positives and 4 false negatives**, from
+`data/gold/errors.csv` (`make gold-eval` writes it). **85 of the 89 came from two
+behaviours**, both systematic rather than noise.
 
-| Text | Label | Why |
+| Source | Count | What fires |
+|---|---:|---|
+| model, `sneaking` | 46 | `"Gems save Rs. 19"`, `"33% Off Gems save Rs. 19"` |
+| `stock_counter` rule, `scarcity` | 39 | `"59 sold"`, `"330 sold"`, `"7 sold Overseas"` |
+| model, misc | 4 | scattered |
+
+The second group was a defect in this project's own rules. **It was fixed, and the fix
+was re-measured** — see "The fix, and what it bought" below. Errors after the fix:
+**50 false positives, 3 false negatives.**
+
+### FP group 1 — the rule layer contradicts the annotation guide
+
+`stock_counter` matches `"N sold"` **on purpose**. From
+`frontend/src/lib/rules/stock_counter.ts`:
+
+```ts
+/\d+\s*(pieces?\s*)?sold/i,   // "50 pieces sold", "100+ sold" (social proof used as scarcity)
+/\d+\+?\s*sold/i,             // "100+ sold"
+```
+
+`docs/ANNOTATION.md` says the opposite. Its core test calls a **settled, verifiable
+aggregate** benign and lists `Bestseller - {N} sold this week` explicitly in the benign
+column. A cumulative lifetime sale count is as settled as a statistic gets.
+
+So the rule layer and the labelling guide disagree about what `"N sold"` means, and the
+annotation followed the guide. **This is the same defect class the guide was written to
+prevent** — section "Why this matters more than it looks" documents the v2 incident
+where two phrasings of one concept carried opposite labels — recurring in the rule
+layer instead of the dataset.
+
+This single disagreement accounted for **44% of all false positives** and was the
+reason adding rules *lowered* macro-F1. Two components cannot hold opposite
+definitions of the same phrase, so one of them had to change.
+
+### FP group 2 — `Gems save Rs. N` read as sneaking
+
+46 rows of Daraz's loyalty-points messaging classified `sneaking`, model-only, no rule
+involved. The annotation called these benign on the grounds that sneaking requires
+something *slipped in that you did not choose* — a pre-checked box, a fee appearing at
+checkout — whereas an advertised discount adds nothing to the cart.
+
+This one is genuinely arguable. `"33% Off Gems save Rs. 19"` advertises a saving
+contingent on a loyalty programme the shopper may not have, which is at least
+adjacent to drip pricing. **A human annotator might reasonably label these
+`sneaking`, and if they did, precision on this class would improve sharply.** It is
+the single decision that most affects the headline number, which is precisely why the
+absence of a second annotator matters.
+
+### The fix, and what it bought
+
+The guide was treated as authoritative and the rule was changed, not the other way
+round: `docs/ANNOTATION.md` is the definition this project evaluates against, and a
+rule that contradicts it is simply wrong.
+
+Two changes, in `frontend/src/lib/rules/`:
+
+1. **`stock_counter` no longer matches a bare `"N sold"`.** The two `sold` patterns
+   were removed, with the measurement recorded in a comment at the removal site so the
+   next person does not re-add them.
+2. **New rule `recent_activity` → `social_proof`**, matching purchase counts bounded to
+   a recent window (`"61 people bought this in the last 24 hours"`). That is the half
+   of the `"N sold"` question that *is* dark by the guide's own test — unverifiable
+   real-time activity rather than a settled total — and it is social proof, not
+   scarcity. It is deliberately narrow: a bare `"330 sold"` produces nothing.
+
+Re-running `make gold-eval` against the same 400 labels:
+
+| | before | after |
+|---|---:|---:|
+| macro-F1, model + rules (supported classes) | 0.260 | **0.717** |
+| rule-layer contribution | **−0.134** | **+0.323** |
+| `scarcity` precision | 0.093 | **1.000** |
+| `scarcity` F1 | 0.170 | **1.000** |
+| `social_proof` F1 | 0.000 | **1.000** |
+| total errors | 93 | **53** |
+
+The `social_proof` gain is the new rule catching a snippet the model had missed
+outright (below). **The model was not retrained and not touched** — every number in
+this table moved because of two edits to the rule layer.
+
+### The four false negatives (first run)
+
+| Text | Missed label | Note |
 |---|---|---|
-| verify account (Nepali) | forced_action | account-gating a purchase |
-| handling fee (Nepali), on delivery | sneaking | cost surfaced late |
+| `61 people bought this in the last 24 hours` | social_proof | **Matched the dark template in `ANNOTATION.md` verbatim** (`{N} bought in the last {H} hours`) and the model still missed it. **Now caught by `recent_activity`** — a case where the structural layer is the only thing detecting a class at all. |
+| `Sign up to reveal price` | forced_action | Textbook account-gating; the training data contains close paraphrases. |
+| `⚡ Mega Sale is LIVE -- prices this low won't be back. Shop now before it ends!` | false_urgency | Unverifiable price claim plus urgency. |
+| `Ends in days` | false_urgency | A partially-rendered timer. Weak; arguably not a miss at all. |
+
+Two of these four are patterns the model was explicitly trained on, in near-identical
+wording. That is a distribution-shift finding, not a taxonomy gap: real pages phrase
+these things in surrounding context the synthetic templates never produced.
+
+### Rule ablation
+
+| Configuration | macro-F1 (supported) |
+|---|---:|
+| model only | 0.394 |
+| model + rules, **before** the fix | 0.260 (**−0.134**) |
+| model + rules, **after** the fix | **0.717** (**+0.323**) |
+
+This is the project's central architectural claim, measured on real pages for the
+first time — and it landed on both sides of the argument within one session.
+
+**Before the fix, the rule layer made real-site accuracy worse.** One over-broad regex
+was responsible for effectively all of it. That is worth stating plainly rather than
+burying: rules can only *add* findings, never remove them, so under a
+precision-favouring policy a single loose pattern is unusually expensive, and nothing
+in the synthetic evaluation could have exposed it. Only real pages contain
+`"330 sold"` in quantity.
+
+**After the fix, the rule layer contributes +0.323 macro-F1** and is the only reason
+two of the four measurable classes are detected at all. The hybrid design is
+vindicated — but by evidence obtained after it had first been contradicted, which is
+the more honest version of the story and the one worth telling.
+
+The transferable lesson is about the *method*, not the regex: a hybrid system needs
+its rule layer evaluated against real data and against its own annotation guide.
+Neither the unit tests (which passed throughout) nor the synthetic metrics could
+detect a rule that was confidently, consistently wrong.
 
 ---
 
