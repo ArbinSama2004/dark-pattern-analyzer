@@ -1,7 +1,7 @@
 """Tests for the LLM explanation service.
 
-Everything here runs against an httpx.MockTransport rather than a live Ollama
-or Groq endpoint: the interesting behaviour is prompt construction, policy
+Everything here runs against an httpx.MockTransport rather than the live Groq
+endpoint: the interesting behaviour is prompt construction, policy
 enforcement and error mapping, none of which need a real model, and a test
 suite that silently passes when the provider happens to be running locally is
 worse than no test at all.
@@ -26,7 +26,7 @@ from app.services.explain import (
 from app.services.llm import ChatClient, LLMConfig, LLMError
 
 CONFIG = LLMConfig(
-    base_url="http://localhost:11434/v1",
+    base_url="https://api.groq.com/openai/v1",
     model="test-model",
     api_key="test-key",
     timeout=5.0,
@@ -222,10 +222,10 @@ class TestCacheKey:
         assert cache_key(make_request(), "m") == cache_key(make_request(), "m")
 
     def test_different_models_do_not_share_a_key(self):
-        # Switching Ollama -> Groq for a demo must not serve the other's output,
-        # or a provider comparison is measuring nothing.
-        assert cache_key(make_request(), "ollama-model") != cache_key(
-            make_request(), "groq-model"
+        # Changing DP_LLM_MODEL must not serve the previous model's output,
+        # or a model comparison is measuring nothing.
+        assert cache_key(make_request(), "llama-3.3-70b-versatile") != cache_key(
+            make_request(), "llama-3.1-8b-instant"
         )
 
     def test_different_context_does_not_share_a_key(self):
@@ -253,7 +253,7 @@ class TestClientErrors:
             await client.complete(system="s", user="u")
 
         assert excinfo.value.retryable is True
-        assert "localhost:11434" in str(excinfo.value)
+        assert "api.groq.com" in str(excinfo.value)
 
     @pytest.mark.anyio
     async def test_timeout_is_retryable(self):
@@ -315,7 +315,7 @@ class TestClientErrors:
         await make_client(handler).complete(system="sys", user="usr")
 
         assert seen["auth"] == "Bearer test-key"
-        assert seen["url"] == "http://localhost:11434/v1/chat/completions"
+        assert seen["url"] == "https://api.groq.com/openai/v1/chat/completions"
         assert seen["body"]["model"] == "test-model"
         assert seen["body"]["stream"] is False
         assert seen["body"]["messages"][0] == {"role": "system", "content": "sys"}
@@ -366,6 +366,19 @@ class TestExplainRoute:
 
         assert response.status_code == 503
         assert "DP_LLM_ENABLED" in response.json()["detail"]
+
+    def test_503_names_the_missing_api_key_rather_than_the_enable_flag(self):
+        # Enabled but unconfigured. Forwarding this to Groq would return a 401
+        # that reads as a model or network fault; the operator needs to be sent
+        # to the key, not told to check a flag that is already set correctly.
+        app = create_app(Settings(llm_enabled=True, llm_api_key=""))
+        with TestClient(app) as client:
+            response = client.post("/v1/explain", json=BODY)
+
+        assert response.status_code == 503
+        detail = response.json()["detail"]
+        assert "DP_LLM_API_KEY" in detail
+        assert "DP_LLM_ENABLED" not in detail
 
     def test_returns_an_explanation(self):
         text = "This stock claim may be designed to rush your decision."

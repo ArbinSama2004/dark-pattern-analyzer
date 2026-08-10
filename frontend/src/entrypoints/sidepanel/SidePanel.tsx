@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LABEL_DESCRIPTIONS, type Label } from "../../lib/taxonomy";
 import {
   findingsStorageKey,
+  stripFragment,
   type ContextReply,
   type ExplainReply,
   type StoredFindings,
@@ -28,7 +29,13 @@ import {
  */
 export function SidePanel() {
   const [tabId, setTabId] = useState<number | null>(null);
-  const [stored, setStored] = useState<StoredFindings | null>(null);
+  const [storedRaw, setStoredRaw] = useState<StoredFindings | null>(null);
+  /** URL of the tab the panel is following, fragment stripped. Compared
+   * against the findings' own documentUrl so the panel never shows one page's
+   * findings while the user is looking at another -- the storage entry can
+   * legitimately still hold the previous page's results for the moment
+   * between navigating and the first batch of the new page landing. */
+  const [tabUrl, setTabUrl] = useState<string | null>(null);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [showSettings, setShowSettings] = useState(false);
   /** Which finding's explanation is expanded, as `${item.id}:${label}` -- a
@@ -43,15 +50,36 @@ export function SidePanel() {
 
     async function loadActiveTab() {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!cancelled) setTabId(tab?.id ?? null);
+      if (cancelled) return;
+      setTabId(tab?.id ?? null);
+      setTabUrl(tab?.url ? stripFragment(tab.url) : null);
     }
     loadActiveTab();
 
-    const onActivated = (info: chrome.tabs.TabActiveInfo) => setTabId(info.tabId);
+    const onActivated = (info: chrome.tabs.TabActiveInfo) => {
+      setTabId(info.tabId);
+      void chrome.tabs.get(info.tabId).then((tab) => {
+        setTabUrl(tab?.url ? stripFragment(tab.url) : null);
+      });
+    };
+    // Follow in-tab navigations too, not just tab switches: without this the
+    // panel keeps the URL it started with and every subsequent page's
+    // findings look like they belong to a different document.
+    const onUpdated = (
+      updatedTabId: number,
+      changeInfo: chrome.tabs.TabChangeInfo,
+      tab: chrome.tabs.Tab,
+    ) => {
+      if (!tab.active || !changeInfo.url) return;
+      setTabId(updatedTabId);
+      setTabUrl(stripFragment(changeInfo.url));
+    };
     chrome.tabs.onActivated.addListener(onActivated);
+    chrome.tabs.onUpdated.addListener(onUpdated);
     return () => {
       cancelled = true;
       chrome.tabs.onActivated.removeListener(onActivated);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
     };
   }, []);
 
@@ -67,7 +95,7 @@ export function SidePanel() {
 
     async function load() {
       const result = await chrome.storage.session.get(key);
-      if (!cancelled) setStored((result[key] as StoredFindings | undefined) ?? null);
+      if (!cancelled) setStoredRaw((result[key] as StoredFindings | undefined) ?? null);
     }
     load();
 
@@ -76,7 +104,7 @@ export function SidePanel() {
       areaName: string,
     ) => {
       if (areaName !== "session" || !(key in changes)) return;
-      setStored((changes[key]!.newValue as StoredFindings | undefined) ?? null);
+      setStoredRaw((changes[key]!.newValue as StoredFindings | undefined) ?? null);
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => {
@@ -84,6 +112,16 @@ export function SidePanel() {
       chrome.storage.onChanged.removeListener(onChanged);
     };
   }, [tabId]);
+
+  /** Findings, but only if they belong to the page currently in the tab.
+   * Mismatched entries are treated as absent rather than shown with a
+   * caveat -- the user is looking at a different page, and stale findings
+   * pointing at elements that no longer exist are actively misleading. */
+  const stored = useMemo(() => {
+    if (!storedRaw) return null;
+    if (tabUrl !== null && storedRaw.documentUrl !== tabUrl) return null;
+    return storedRaw;
+  }, [storedRaw, tabUrl]);
 
   const grouped = useMemo(() => {
     const map = new Map<Label, ClassifyItemResult[]>();

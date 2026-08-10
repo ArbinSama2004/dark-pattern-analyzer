@@ -63,7 +63,27 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         max_entries=settings.llm_cache_max_entries,
         ttl_seconds=settings.cache_ttl,
     )
-    if settings.llm_enabled:
+    #: Why explanations are unavailable, surfaced verbatim by /v1/explain. A
+    #: single generic "not enabled" message sent an operator to check the wrong
+    #: setting when the real problem was a missing key, so each cause states
+    #: its own fix.
+    app.state.llm_disabled_reason = (
+        "LLM explanations are not enabled on this server. Set DP_LLM_ENABLED=true "
+        "in backend/.env and restart."
+    )
+
+    if settings.llm_enabled and not settings.llm_api_key.strip():
+        app.state.llm_disabled_reason = (
+            "LLM explanations are enabled but DP_LLM_API_KEY is empty. Add your "
+            "Groq API key to backend/.env (it is gitignored) and restart."
+        )
+        log.error(
+            "DP_LLM_ENABLED=true but DP_LLM_API_KEY is empty -- /v1/explain will "
+            "report this rather than sending unauthenticated requests to %s",
+            settings.llm_base_url,
+        )
+    elif settings.llm_enabled:
+        app.state.llm_disabled_reason = None
         app.state.llm_client = ChatClient(
             LLMConfig(
                 base_url=settings.llm_base_url,

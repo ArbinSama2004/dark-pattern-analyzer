@@ -60,6 +60,16 @@ const TRANSIENT_HIGHLIGHT_MS = 1500;
  * the neighboring row's text. */
 const BADGE_GAP = 6;
 
+/** How far above and below a target to look for text the badge might cover.
+ * Comfortably more than one badge height plus its gap, so both the "above"
+ * and "below" candidates are fully inside the searched region. */
+const VERTICAL_SEARCH_MARGIN = 60;
+
+/** Cap on text nodes examined per badge per render. A product card holds a
+ * few dozen; this only bites on pathological markup, where placement degrades
+ * to "considers the first N text runs" rather than stalling a render. */
+const MAX_TEXT_NODES_SCANNED = 400;
+
 /** A viewport-space rectangle. Structurally compatible with DOMRect for the
  * four edges we actually use, so real `getBoundingClientRect()` results and
  * plain test fixtures both satisfy it. */
@@ -225,6 +235,19 @@ export function mountOverlay(
    * to back it when they clicked.
    */
   const pinnedIds = new Set<string>();
+
+  /**
+   * Ids whose badge has been collapsed to its icon-only form.
+   *
+   * Sticky on purpose. The labelled/collapsed choice depends on what text
+   * currently surrounds the target, and that changes constantly while a page
+   * settles -- images finishing load, lazy rows appearing, fonts swapping.
+   * Recomputing it per render made badges visibly oscillate between the full
+   * label and the icon, which reads as flickering. Deciding once per finding
+   * and keeping it is stable, and the cost of being wrong is small: a badge
+   * that could have shown its label stays an icon until the next page load.
+   */
+  const collapsedIds = new Set<string>();
   /** Elements we have written inline outline styles onto, with the values we
    * clobbered, so the host page's own styling is restored exactly on unpin. */
   const outlined = new Map<HTMLElement, { outline: string; offset: string }>();
@@ -284,55 +307,69 @@ export function mountOverlay(
    * means a badge can legitimately tuck into a target's own whitespace,
    * which the old element-level check could never allow.
    *
-   * Scoped to elements actually near the target (hit-tested at a ring of
-   * sample points around it) rather than walking the document, so this stays
-   * affordable at one call per badge per render.
+   * Collected by walking the text nodes of a bounded ancestor and keeping the
+   * rectangles that fall in the region the badge could actually occupy.
+   *
+   * An earlier version hit-tested a ring of eight sample points around the
+   * target instead, and missed the exact case this was written for. On a Daraz
+   * product card the flagged element is the discount ("-69%", ~48px wide) but
+   * the badge is ~140px wide, and the current price ("Rs.295") sits to its
+   * *left*. Every probe was taken at the target's own x-range, where there is
+   * nothing but card background -- so the price registered as no obstacle, the
+   * "above" position scored a clean zero, and the badge was placed straight
+   * over the price. Point sampling around a small target cannot see what a
+   * much wider badge will cover; the search region has to be the size of the
+   * badge, not the size of the target.
    */
-  function textRectsNear(target: Element, targetRect: DOMRect): Box[] {
-    const probeElements = new Set<Element>([target]);
+  function textRectsNear(target: Element, targetRect: DOMRect, badgeWidth: number): Box[] {
+    // The region any candidate position could land in: a badge-width margin
+    // either side, and enough above/below for the vertical placements.
+    const region: Box = {
+      top: targetRect.top - VERTICAL_SEARCH_MARGIN,
+      bottom: targetRect.bottom + VERTICAL_SEARCH_MARGIN,
+      left: targetRect.left - badgeWidth - BADGE_GAP,
+      right: targetRect.right + badgeWidth + BADGE_GAP,
+    };
 
-    // Probe a ring around the target covering every position
-    // chooseBadgePosition might pick, so obstacles in each of those
-    // directions are discovered before the position is scored.
-    const margin = 28;
-    const probes: Array<[number, number]> = [
-      [targetRect.left + targetRect.width / 2, targetRect.top - margin],
-      [targetRect.left, targetRect.top - margin],
-      [targetRect.right, targetRect.top - margin],
-      [targetRect.left + targetRect.width / 2, targetRect.bottom + margin],
-      [targetRect.left, targetRect.bottom + margin],
-      [targetRect.right, targetRect.bottom + margin],
-      [targetRect.left - margin, targetRect.top + targetRect.height / 2],
-      [targetRect.right + margin, targetRect.top + targetRect.height / 2],
-    ];
-    for (const [x, y] of probes) {
-      if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) continue;
-      const found = document.elementFromPoint(x, y);
-      // A closed shadow root is opaque to elementFromPoint from outside, so
-      // one of our own badges reports as the host element -- never an
-      // obstacle (badge-vs-badge is scored separately, with its own weight).
-      if (!found || found === host) continue;
-      probeElements.add(found);
+    // Climb to an ancestor that plausibly contains the whole local layout
+    // block (the product card, the price block), so the walk below sees the
+    // neighbouring rows. Bounded: without a cap this reaches <body> on a
+    // shallow page and the walk stops being affordable.
+    let container: Element = target;
+    for (let depth = 0; depth < 4; depth += 1) {
+      const parent = container.parentElement;
+      if (!parent) break;
+      container = parent;
+      const rect = parent.getBoundingClientRect();
+      if (rect.width >= region.right - region.left && rect.height >= targetRect.height) {
+        break;
+      }
     }
 
     const rects: Box[] = [];
-    for (const el of probeElements) {
-      for (const node of el.childNodes) {
-        // Direct text children only. Descending would re-collect the same
-        // glyphs once per ancestor level; the probe set already includes the
-        // leaf elements that actually own the text.
-        if (node.nodeType !== Node.TEXT_NODE) continue;
+    let scanned = 0;
+    try {
+      const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+      for (
+        let node = walker.nextNode();
+        node && scanned < MAX_TEXT_NODES_SCANNED;
+        node = walker.nextNode()
+      ) {
+        scanned += 1;
         if (!(node.textContent ?? "").trim()) continue;
-        try {
-          const range = document.createRange();
-          range.selectNodeContents(node);
-          for (const rect of range.getClientRects()) {
-            if (rect.width > 0 && rect.height > 0) rects.push(rect);
-          }
-        } catch {
-          // A node detached between hit-test and range construction -- skip.
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        for (const rect of range.getClientRects()) {
+          if (rect.width <= 0 || rect.height <= 0) continue;
+          // Only what the badge could plausibly reach. Rects outside the
+          // region cannot affect any candidate's score, and carrying them
+          // would make the scoring loop proportional to card size.
+          if (intersectionArea(rect, region) > 0) rects.push(rect);
         }
       }
+    } catch {
+      // A subtree mutated mid-walk (SPA re-render). Whatever was collected so
+      // far is still valid; placement degrades, it does not fail.
     }
     return rects;
   }
@@ -531,10 +568,17 @@ export function mountOverlay(
 
     // Phase 2: measure, place, reveal. Sequential rather than batched because
     // each placement depends on where the previous ones landed (placedBoxes).
-    for (const { el, rect, badge } of pending) {
-      const obstacles = textRectsNear(el, rect);
+    for (const { item, el, rect, badge } of pending) {
+      // Already decided to be an icon on an earlier render -- honour that
+      // rather than re-deriving it from a layout that has since shifted.
+      const alreadyCollapsed = collapsedIds.has(item.id);
+      if (alreadyCollapsed) badge.classList.add("collapsed");
 
+      // Measured first: the obstacle search region is sized by the badge, not
+      // the target, because a wide badge covers content well outside a small
+      // target's own bounds -- see textRectsNear.
       const labelled = { width: badge.offsetWidth, height: badge.offsetHeight };
+      const obstacles = textRectsNear(el, rect, labelled.width);
       let box = chooseBadgePosition(rect, labelled, obstacles, placedBoxes, viewport);
       let penalty = positionPenalty(box, obstacles, placedBoxes);
 
@@ -544,7 +588,7 @@ export function mountOverlay(
       // so badges stay readable wherever there is actually room for them.
       // This is the adaptive half of the fix: the old code had one fixed
       // badge size and no recourse when it didn't fit anywhere.
-      if (penalty > 0) {
+      if (penalty > 0 && !alreadyCollapsed) {
         badge.classList.add("collapsed");
         const collapsed = { width: badge.offsetWidth, height: badge.offsetHeight };
         const collapsedBox = chooseBadgePosition(
@@ -558,6 +602,7 @@ export function mountOverlay(
         if (collapsedPenalty < penalty) {
           box = collapsedBox;
           penalty = collapsedPenalty;
+          collapsedIds.add(item.id);
         } else {
           badge.classList.remove("collapsed");
         }
@@ -641,6 +686,10 @@ export function mountOverlay(
       // outlined-element bookkeeping can't leak across page navigations.
       const liveIds = new Set(items.map((i) => i.id));
       for (const id of [...pinnedIds]) if (!liveIds.has(id)) pinnedIds.delete(id);
+      // Same bookkeeping for the sticky collapsed set, so it can't grow
+      // without bound across a long-lived tab or carry a decision from a
+      // previous page onto a new one.
+      for (const id of [...collapsedIds]) if (!liveIds.has(id)) collapsedIds.delete(id);
       console.log(`[dark-pattern-analyzer] overlay.update: ${items.length} item(s)`);
       scheduleRender();
     },

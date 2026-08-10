@@ -181,11 +181,17 @@ score — there is no path from its response back into the pipeline, deliberatel
 fine-tuned classifier stays the source of truth for *what* was detected, and the LLM
 is a presentation layer over *why it matters*.
 
-**One client, two providers.** Ollama (local development) and Groq (hosted demos)
-both speak the OpenAI chat-completions format, so switching is three env vars rather
-than a second code path. The API key is read on the server and never enters the
-extension bundle, which is world-readable to anyone who installs it. That is the
-reason this is a backend endpoint at all.
+**Provider is Groq**, over its OpenAI-compatible chat-completions endpoint. Nothing
+in `services/llm.py` is Groq-specific, so any OpenAI-compatible provider works by
+changing `DP_LLM_BASE_URL` and `DP_LLM_MODEL` — but Groq is what is configured and
+tested. `DP_LLM_API_KEY` is read on the server and never enters the extension bundle,
+which is world-readable to anyone who installs it. That is the reason this is a
+backend endpoint at all rather than a direct call from the side panel.
+
+Enabling without a key is a distinct, separately-reported state: the endpoint returns
+503 naming the missing key rather than forwarding an unauthenticated request and
+surfacing Groq's 401, which reads as a model or network problem instead of a
+configuration one.
 
 **On demand, never batched.** One call when a user expands a finding in the side
 panel, cached afterwards. Generating explanations at scan time would multiply a page
@@ -203,10 +209,10 @@ rejecting generated text containing legal-claim language (`illegal`, `fraud`,
 depends on never making that claim. A rejected generation returns 502 and the UI
 falls back to the static description, which is always safe.
 
-**Privacy note:** whether page content leaves the machine depends entirely on the
-configured provider. Groq is remote by definition, and some Ollama model tags
-(anything ending `-cloud`) are proxied to ollama.com rather than run locally —
-check `ollama list` output for a `remote_host` before assuming local inference.
+**Privacy note:** explanations send the flagged text and a handful of neighbouring
+page snippets to Groq. Page content therefore leaves the machine whenever a user
+clicks "Explain this finding" — that is inherent to a hosted provider, and worth
+stating plainly in any demo or write-up.
 
 ---
 

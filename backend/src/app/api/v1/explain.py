@@ -45,12 +45,14 @@ router = APIRouter(tags=["explain"])
 async def explain(request: Request, body: ExplainRequest) -> ExplainResponse:
     client = getattr(request.app.state, "llm_client", None)
     if client is None:
+        # The reason is decided at startup (see main.py's lifespan), because
+        # only startup knows *which* piece of configuration is missing --
+        # "not enabled" and "enabled but no API key" need different fixes and
+        # a single generic message sends the operator to the wrong setting.
+        reason = getattr(request.app.state, "llm_disabled_reason", None)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "LLM explanations are not enabled on this server. Set DP_LLM_ENABLED=true "
-                "and configure DP_LLM_BASE_URL / DP_LLM_MODEL."
-            ),
+            detail=reason or "LLM explanations are unavailable on this server.",
         )
 
     try:

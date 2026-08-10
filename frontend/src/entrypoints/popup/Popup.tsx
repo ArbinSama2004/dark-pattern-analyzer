@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { findingsStorageKey, type StoredFindings } from "../../lib/messaging";
+import { findingsStorageKey, stripFragment, type StoredFindings } from "../../lib/messaging";
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -44,7 +44,13 @@ export function Popup() {
       if (tab?.id !== undefined) {
         const key = findingsStorageKey(tab.id);
         const result = await chrome.storage.session.get(key);
-        currentFindings = (result[key] as StoredFindings | undefined) ?? null;
+        const found = (result[key] as StoredFindings | undefined) ?? null;
+        // Only show findings that belong to the page this tab is actually on.
+        // Between navigating and the new page's first batch landing, the
+        // storage entry still holds the previous page's results.
+        const currentUrl = tab.url ? stripFragment(tab.url) : null;
+        currentFindings =
+          found && (currentUrl === null || found.documentUrl === currentUrl) ? found : null;
       }
 
       if (!cancelled) {

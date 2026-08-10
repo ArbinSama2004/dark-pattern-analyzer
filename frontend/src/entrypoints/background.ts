@@ -15,6 +15,8 @@ import { modelCacheKey } from "../lib/hash";
 import type { CandidateWithHits } from "../lib/messaging";
 import {
   findingsStorageKey,
+  lastDocumentUrlKey,
+  stripFragment,
   type ClassifyCandidatesMessage,
   type ClassifyItemResult,
   type ExtensionMessage,
@@ -99,15 +101,29 @@ async function saveCache(cache: Record<string, SnippetResult>): Promise<void> {
   await chrome.storage.session.set({ [CACHE_STORAGE_KEY]: cache });
 }
 
-/** Findings already accumulated for a tab on the current page. Read back out
- * of storage rather than kept in module scope because MV3 kills the worker
- * between messages -- a module-level Map would silently reset and take every
- * previously-found badge with it. Cleared on navigation by the
- * tabs.onUpdated listener at the bottom of this file. */
-async function loadStoredItems(tabId: number): Promise<ClassifyItemResult[]> {
+/** Findings already accumulated for this tab *on this document*.
+ *
+ * Read back out of storage rather than kept in module scope because MV3 kills
+ * the worker between messages -- a module-level Map would silently reset and
+ * take every previously-found badge with it.
+ *
+ * The documentUrl check is what stops one page's findings leaking onto the
+ * next. On an SPA (Daraz, most storefronts) an in-page navigation does not
+ * reload the content script or reliably beat the navigation cleanup, so the
+ * accumulator used to seed itself from the previous route's findings and
+ * re-persist them -- which is why home-page patterns kept appearing on
+ * product pages. A mismatch here means "different page, start empty", which
+ * is correct regardless of whether any cleanup listener ran. */
+async function loadStoredItems(
+  tabId: number,
+  documentUrl: string,
+): Promise<ClassifyItemResult[]> {
   const key = findingsStorageKey(tabId);
   const stored = await chrome.storage.session.get(key);
-  return (stored[key] as StoredFindings | undefined)?.items ?? [];
+  const findings = stored[key] as StoredFindings | undefined;
+  if (!findings) return [];
+  if (findings.documentUrl !== documentUrl) return [];
+  return findings.items ?? [];
 }
 
 async function isScanEnabled(): Promise<boolean> {
@@ -160,6 +176,10 @@ async function handleClassifyCandidates(
   // parameter doesn't survive across a nested function boundary).
   const knownTabId: number = tabId;
 
+  // The document these candidates describe. Every write below is stamped with
+  // it, and every read is validated against it.
+  const documentUrl = stripFragment(message.pageUrl);
+
   const capped = message.candidates.slice(0, MAX_SNIPPETS_PER_PAGE);
   const cache = await loadCache();
   // occurrenceId (candidate.id) -> modelCacheKey, one lookup built per
@@ -181,7 +201,7 @@ async function handleClassifyCandidates(
   // between the real total and the score of whatever single snippet had just
   // been re-sent.
   const accumulated = new Map<string, ClassifyItemResult>();
-  for (const item of await loadStoredItems(knownTabId)) {
+  for (const item of await loadStoredItems(knownTabId, documentUrl)) {
     accumulated.set(item.id, item);
   }
 
@@ -238,6 +258,7 @@ async function handleClassifyCandidates(
       pageScore,
       updatedAt: Date.now(),
       items: withFindings,
+      documentUrl,
     };
     // Fire-and-forget: batches must not wait on this write to keep going.
     void chrome.storage.session.set({ [findingsStorageKey(knownTabId)]: stored });
@@ -257,6 +278,7 @@ async function handleClassifyCandidates(
         type: "dp/classify-progress",
         results: withFindings,
         pageScore,
+        documentUrl,
       })
       // Log real errors so they appear in the service-worker console
       // (chrome://extensions → "service worker" link). The previous
@@ -384,12 +406,43 @@ export default defineBackground(() => {
     },
   );
 
-  // Clear the per-tab findings and dedupe cache when a tab navigates away,
+  // Clear the per-tab findings when a tab navigates to a *different document*,
   // so stale findings from the previous page never leak into the new one.
+  //
+  // This used to fire on any `changeInfo.status === "loading"`, which Chrome
+  // also reports for same-document navigations -- including a bare hash
+  // change. Daraz's home page rewrites the hash as you scroll through its
+  // sections (#hp-flash-sale -> #hp-just-for-you -> ...), so scrolling wiped
+  // every finding and the side panel dropped back to "No scan run yet"
+  // mid-session. The document never changed; only the fragment did.
+  //
+  // Comparing the URL with its fragment stripped is what distinguishes the two.
+  // A same-document hash change keeps its findings (the DOM they point at is
+  // still there); a real navigation, including a reload to a different path or
+  // a query change, clears them.
   chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-    if (changeInfo.status === "loading") {
-      chrome.storage.session.remove(findingsStorageKey(tabId));
-    }
+    if (!changeInfo.url) return;
+
+    const documentUrl = stripFragment(changeInfo.url);
+    void (async () => {
+      const key = lastDocumentUrlKey(tabId);
+      const stored = await chrome.storage.session.get(key);
+      const previous = stored[key] as string | undefined;
+
+      if (previous === documentUrl) return; // fragment-only change
+
+      await chrome.storage.session.set({ [key]: documentUrl });
+      await chrome.storage.session.remove(findingsStorageKey(tabId));
+    })();
+  });
+
+  // Drop the per-tab bookkeeping when the tab itself goes away, so a recycled
+  // tab id can never inherit the previous tab's document URL and skip a clear.
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    void chrome.storage.session.remove([
+      findingsStorageKey(tabId),
+      lastDocumentUrlKey(tabId),
+    ]);
   });
 
   // Applied on every worker start, not just on install: MV3 kills this

@@ -15,6 +15,13 @@ export interface CandidateWithHits {
 export interface ClassifyCandidatesMessage {
   type: "dp/classify-candidates";
   candidates: CandidateWithHits[];
+  /** The document these candidates came from, fragment stripped. Supplied by
+   * the content script from its own `location.href` rather than read from
+   * `sender.tab.url`, because on a same-document SPA navigation the tab's URL
+   * and the DOM the content script actually walked can disagree for a moment
+   * -- and attributing one page's findings to another is the bug this field
+   * exists to prevent. */
+  pageUrl: string;
 }
 
 export interface ClassifyItemResult {
@@ -45,6 +52,11 @@ export interface ClassifyProgressMessage {
   type: "dp/classify-progress";
   results: ClassifyItemResult[];
   pageScore: number;
+  /** Document these results describe. The content script drops a push whose
+   * URL is not the page it is currently showing -- an in-flight batch from
+   * the previous route can still land after an SPA navigation, and rendering
+   * it puts the old page's badges on the new page. */
+  documentUrl: string;
 }
 
 /** Sent sidepanel/popup -> content.ts to scroll to and briefly highlight the
@@ -114,10 +126,35 @@ export function findingsStorageKey(tabId: number): string {
   return `findings:${tabId}`;
 }
 
+/** chrome.storage.session key holding the last *document* URL seen for a tab
+ * (its fragment stripped). Compared on navigation to tell a real page change
+ * from a same-document hash change, which Chrome reports identically -- see
+ * the tabs.onUpdated listener in background.ts. */
+export function lastDocumentUrlKey(tabId: number): string {
+  return `docurl:${tabId}`;
+}
+
+/** A URL with any `#fragment` removed. Returns the input unchanged if it isn't
+ * parseable -- callers compare the result for equality, and an unparseable URL
+ * comparing equal to itself is the correct, conservative outcome. */
+export function stripFragment(url: string): string {
+  const hashIndex = url.indexOf("#");
+  return hashIndex === -1 ? url : url.slice(0, hashIndex);
+}
+
 export interface StoredFindings {
   pageScore: number;
   updatedAt: number;
   items: ClassifyItemResult[];
+  /** Document these findings describe, fragment stripped.
+   *
+   * Findings used to be keyed by tab id alone, with a navigation listener
+   * clearing them. That is a race: the clear is asynchronous, and a classify
+   * response for the *previous* page can be written after it, resurrecting
+   * findings for a page nobody is looking at. Stamping the URL makes every
+   * reader able to tell for itself whether what it loaded belongs to the page
+   * in front of it, instead of trusting that a cleanup ran in time. */
+  documentUrl: string;
 }
 
 // The scan on/off toggle used to live here as SCAN_ENABLED_KEY, a single

@@ -54,22 +54,15 @@ class Settings(BaseSettings):
 
     # --- LLM explanations (POST /v1/explain) -------------------------------
     #
-    # Ollama and Groq both speak the OpenAI chat-completions wire format, so
-    # one client covers both and switching providers is three env vars, not a
-    # code change:
+    # Provider is Groq. The client speaks the OpenAI chat-completions wire
+    # format, so any OpenAI-compatible endpoint would also work by changing
+    # these variables -- but Groq is what this is configured and tested for.
     #
-    #   local (Ollama):  DP_LLM_BASE_URL=http://localhost:11434/v1
-    #                    DP_LLM_MODEL=<your local model tag>
-    #                    DP_LLM_API_KEY=ollama          (ignored, must be non-empty)
-    #
-    #   demo (Groq):     DP_LLM_BASE_URL=https://api.groq.com/openai/v1
-    #                    DP_LLM_MODEL=<a groq-hosted model>
-    #                    DP_LLM_API_KEY=<real key>
-    #
-    # The key is read from the environment on the *server* and never leaves it.
-    # It must never be placed in the extension bundle, which is world-readable
-    # to anyone who installs it -- this is why explanations are a backend
-    # endpoint rather than a direct call from the side panel.
+    # DP_LLM_API_KEY is a real secret. It is read from the environment on the
+    # *server* and never leaves it. It must never be placed in the extension
+    # bundle, which is world-readable to anyone who installs it -- that is the
+    # reason explanations are a backend endpoint rather than a direct call
+    # from the side panel.
 
     #: Master switch. When false, /v1/explain returns 503 with a clear reason
     #: instead of half-working -- the extension disables its own control on
@@ -77,21 +70,21 @@ class Settings(BaseSettings):
     llm_enabled: bool = False
 
     #: OpenAI-compatible base URL, including the version path segment.
-    llm_base_url: str = "http://localhost:11434/v1"
+    llm_base_url: str = "https://api.groq.com/openai/v1"
 
-    #: Model identifier as the provider names it. Defaulted to the local
-    #: Ollama tag this was developed against; `ollama list` is the authority
-    #: on what your install actually has.
-    llm_model: str = "gemma4:31b-cloud"
+    #: Model identifier as Groq names it. Groq's catalogue changes; check
+    #: https://console.groq.com/docs/models if this one stops resolving.
+    llm_model: str = "llama-3.3-70b-versatile"
 
-    #: Sent as `Authorization: Bearer`. Ollama ignores the value but some
-    #: clients require the header to be present at all.
-    llm_api_key: str = "ollama"
+    #: Sent as `Authorization: Bearer`. Empty by default so an unconfigured
+    #: server fails with "no API key" rather than a confusing 401 from Groq.
+    #: Set it in backend/.env (gitignored) or the process environment.
+    llm_api_key: str = ""
 
-    #: Per-request timeout in seconds. A local model on CPU is genuinely slow;
-    #: this is deliberately generous, and the UI shows a pending state rather
-    #: than blocking anything else.
-    llm_timeout: float = 90.0
+    #: Per-request timeout in seconds. Groq is fast -- this is generous enough
+    #: to absorb a queue spike without being long enough that a wedged request
+    #: holds the UI's pending state indefinitely.
+    llm_timeout: float = 45.0
 
     #: Upper bound on generated length. Explanations are a short paragraph;
     #: this is a cost and latency guard, not a quality knob.

@@ -102,7 +102,7 @@ describe("createExplainClient", () => {
   });
 
   it("surfaces the backend's reason verbatim so failures are distinguishable", async () => {
-    // "Ollama isn't running" and "your API key is wrong" must not both read as
+    // "no API key configured" and "Groq is unreachable" must not both read as
     // a generic failure -- the detail is the only thing that tells them apart.
     const fetchImpl = vi.fn(async () =>
       jsonResponse({ detail: "could not reach the model provider. Is it running?" }, 503),

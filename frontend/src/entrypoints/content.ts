@@ -16,8 +16,10 @@ import type {
   ExportTraceMessage,
   GetContextMessage,
   ScrollToMessage,
+  StoredFindings,
 } from "../lib/messaging";
 import { MAX_CONTEXT_CHARS, MAX_CONTEXT_SNIPPETS } from "../lib/api/explain";
+import { findingsStorageKey, stripFragment } from "../lib/messaging";
 import { recordObservation, isAnimated } from "../lib/timer-tracker";
 import { mountOverlay, scrollAndHighlight } from "../ui/overlay";
 import { resolveOccurrence, type ResolveDiagnostic } from "../lib/resolve";
@@ -192,7 +194,60 @@ export default defineContentScript({
      * call sites already did (overlay.update), then schedules the debounced
      * console table so the trace is visible without typing anything.
      */
-    function applyResults(items: ClassifyItemResult[]): void {
+    /**
+     * The document this content script is currently showing, fragment
+     * stripped.
+     *
+     * A content script is injected once per *document*, not once per
+     * navigation. On an SPA -- which every storefront this targets is --
+     * an in-page route change replaces the entire DOM but leaves this script,
+     * and all of its accumulated state, exactly as it was. Nothing here used
+     * to notice, so the previous route's candidates, sent-ids and badges
+     * carried over onto the next page. That is why home-page findings kept
+     * appearing on product pages.
+     */
+    let currentDocumentUrl = stripFragment(location.href);
+
+    /** Drop every piece of per-page state and start over. Called when the
+     * document URL changes under a still-running content script. */
+    function resetForNewDocument(nextUrl: string): void {
+      console.log(
+        `[dark-pattern-analyzer] document changed -- resetting page state\n` +
+          `  from: ${currentDocumentUrl}\n    to: ${nextUrl}`,
+      );
+      currentDocumentUrl = nextUrl;
+      elementRegistry.clear();
+      unresolvable.clear();
+      sentIds.clear();
+      sentChurnKeys.clear();
+      trace.clear();
+      // Clear the badges immediately rather than waiting for the first
+      // classify response of the new page -- stale badges pointing at nodes
+      // that no longer exist are worse than none.
+      overlay.update([]);
+    }
+
+    /** True if the document changed since the last check; resets state if so. */
+    function syncDocumentUrl(): boolean {
+      const nextUrl = stripFragment(location.href);
+      if (nextUrl === currentDocumentUrl) return false;
+      resetForNewDocument(nextUrl);
+      return true;
+    }
+
+    function applyResults(items: ClassifyItemResult[], documentUrl?: string): void {
+      // Results for a page this script is no longer showing. An in-flight
+      // batch for the previous route can land seconds after an SPA
+      // navigation, and rendering it puts the old page's badges on the new
+      // page -- the exact symptom this guard exists to prevent. Undefined is
+      // accepted for callers that have no URL to offer.
+      if (documentUrl !== undefined && documentUrl !== currentDocumentUrl) {
+        console.log(
+          `[dark-pattern-analyzer] ignoring ${items.length} result(s) for a different document (${documentUrl})`,
+        );
+        return;
+      }
+
       const now = Date.now();
       for (const item of items) {
         const labels = item.findings.map((f) => f.label);
@@ -299,6 +354,9 @@ export default defineContentScript({
 
     async function runExtraction() {
       lastExtractionAt = Date.now();
+      // Checked first: on an SPA the DOM about to be walked may belong to a
+      // different route than the state accumulated so far.
+      syncDocumentUrl();
       // Scanning off: no extraction, no rules, no network. Checked here
       // rather than only in background.ts (which also gates) so a disabled
       // scan costs nothing at all on the page -- the previous single-flag
@@ -404,6 +462,10 @@ export default defineContentScript({
       overlay.refresh();
 
       if (toSend.length === 0) return;
+      // Captured before the await: by the time the response lands, an SPA
+      // navigation may have moved currentDocumentUrl on, and these results
+      // belong to the page as it was when they were requested.
+      const requestedForDocument = currentDocumentUrl;
       for (const { candidate } of toSend) {
         sentIds.add(candidate.id);
         sentChurnKeys.add(churnKeyFor(candidate));
@@ -415,6 +477,7 @@ export default defineContentScript({
         const response = (await chrome.runtime.sendMessage({
           type: "dp/classify-candidates",
           candidates: toSend,
+          pageUrl: currentDocumentUrl,
         })) as ClassifyResultMessage | undefined;
 
         console.log(
@@ -449,7 +512,7 @@ export default defineContentScript({
               entry.lastSeenAt = Date.now();
             }
           }
-          applyResults(response.results);
+          applyResults(response.results, requestedForDocument);
         }
       } catch (err) {
         // The background worker can be mid-restart, or the backend can be
@@ -472,6 +535,22 @@ export default defineContentScript({
 
     // Initial pass.
     scheduleExtraction();
+
+    // SPA route changes. The MutationObserver below would eventually notice
+    // (a route change replaces the DOM), but "eventually" is up to
+    // MIN_EXTRACTION_INTERVAL_MS away, and until then the old page's badges
+    // are still on screen over the new page's content. Reacting to the
+    // history events directly clears them immediately.
+    //
+    // pushState/replaceState fire no event of their own, so a route change
+    // that uses them is only caught by the check inside runExtraction. That
+    // is the reason syncDocumentUrl() is called there too rather than relying
+    // on these listeners alone.
+    const onHistoryNavigation = () => {
+      if (syncDocumentUrl()) scheduleExtraction();
+    };
+    window.addEventListener("popstate", onHistoryNavigation);
+    window.addEventListener("hashchange", onHistoryNavigation);
 
     // Debounced at ~300ms per docs/ARCHITECTURE.md 4.1 -- countdown timers
     // mutate every second; without this an undebounced observer floods the API.
@@ -547,7 +626,7 @@ export default defineContentScript({
           console.log(
             `[dark-pattern-analyzer] dp/classify-progress received: ${message.results.length} item(s)`,
           );
-          applyResults(message.results);
+          applyResults(message.results, message.documentUrl);
         }
       },
     );
@@ -562,38 +641,57 @@ export default defineContentScript({
     // the overlay didn't.
     //
     // To subscribe to the right key we first ask the background worker for
-    // our tabId (content scripts have no direct chrome.tabs API). The ask
-    // is fire-and-forget -- if the background is not ready yet it will be
-    // caught and logged below.
-    chrome.runtime
-      .sendMessage({ type: "dp/get-tab-id" })
-      .then((resp: { tabId: number | null }) => {
-        const tabId = resp?.tabId;
-        if (!tabId) {
-          console.warn(
-            "[dark-pattern-analyzer] dp/get-tab-id returned no tabId -- storage.onChanged path disabled",
-          );
-          return;
-        }
-        const storageKey = `findings:${tabId}`;
-        console.log(
-          `[dark-pattern-analyzer] subscribing storage.onChanged on key "${storageKey}"`,
-        );
-        chrome.storage.onChanged.addListener((changes, area) => {
-          if (area !== "session" || !(storageKey in changes)) return;
-          const newValue = changes[storageKey]?.newValue as
-            | { items: ClassifyItemResult[]; pageScore: number }
+    // our tabId (content scripts have no direct chrome.tabs API).
+    //
+    // This ask is RETRIED, and that matters more than it looks. An MV3
+    // service worker is killed aggressively and started lazily, so on a fresh
+    // page load the worker is very often asleep at exactly the moment this
+    // runs. The previous single-shot version treated that as terminal: the
+    // promise rejected, the failure was logged, and the storage.onChanged
+    // path stayed disabled for the entire life of the page. Whether badges
+    // appeared then depended on whether the classify-progress push happened
+    // to arrive -- which is why reloading two or three times "fixed" it.
+    // Retrying makes the subscription reliable on the first load instead of
+    // by luck.
+    const TAB_ID_RETRY_DELAYS_MS = [0, 100, 300, 800, 2000];
+
+    async function subscribeToFindings(): Promise<void> {
+      for (const [attempt, delay] of TAB_ID_RETRY_DELAYS_MS.entries()) {
+        if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+        try {
+          const resp = (await chrome.runtime.sendMessage({ type: "dp/get-tab-id" })) as
+            | { tabId: number | null }
             | undefined;
-          if (!newValue?.items) return;
+          const tabId = resp?.tabId;
+          if (!tabId) continue;
+
+          const storageKey = findingsStorageKey(tabId);
           console.log(
-            `[dark-pattern-analyzer] storage.onChanged overlay update: ${newValue.items.length} item(s)`,
+            `[dark-pattern-analyzer] subscribing storage.onChanged on key "${storageKey}"` +
+              (attempt > 0 ? ` (after ${attempt} retry/retries)` : ""),
           );
-          applyResults(newValue.items);
-        });
-      })
-      .catch((err: unknown) =>
-        console.warn("[dark-pattern-analyzer] dp/get-tab-id failed:", err),
+          chrome.storage.onChanged.addListener((changes, area) => {
+            if (area !== "session" || !(storageKey in changes)) return;
+            const newValue = changes[storageKey]?.newValue as StoredFindings | undefined;
+            if (!newValue?.items) return;
+            console.log(
+              `[dark-pattern-analyzer] storage.onChanged overlay update: ${newValue.items.length} item(s)`,
+            );
+            applyResults(newValue.items, newValue.documentUrl);
+          });
+          return;
+        } catch {
+          // Worker asleep or mid-restart. Fall through to the next delay.
+        }
+      }
+      console.warn(
+        "[dark-pattern-analyzer] dp/get-tab-id failed after " +
+          `${TAB_ID_RETRY_DELAYS_MS.length} attempts -- storage.onChanged path disabled. ` +
+          "Badges will still update via dp/classify-progress pushes.",
       );
+    }
+
+    void subscribeToFindings();
   },
 });
 

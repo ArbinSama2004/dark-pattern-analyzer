@@ -125,6 +125,32 @@ describe("chooseBadgePosition", () => {
     expect(placed.right).toBeLessThanOrEqual(VIEWPORT.width);
   });
 
+  it("does not cover a price that sits beside, not above, the target", () => {
+    // Regression: the reported Daraz product card. The flagged element is the
+    // discount "-69%" on the lower price row; the current price "Rs.295" is on
+    // the row above it and to the LEFT, outside the target's own x-range. The
+    // badge is far wider than the target, so placing it "above" left-aligned
+    // puts it straight over the price -- which is what the screenshot showed.
+    //
+    // Geometry approximated from that screenshot at its real scale.
+    const discountTarget = box(578, 107, 48, 17); // "-69%"
+    const currentPrice = box(540, 20, 75, 30); // "Rs.295", up and to the left
+    const oldPrice = box(578, 20, 62, 17); // "Rs.950", same row as target
+    const title = box(485, 20, 250, 45); // product title, two lines
+
+    const placed = chooseBadgePosition(
+      discountTarget,
+      BADGE,
+      [currentPrice, oldPrice, title],
+      [],
+      VIEWPORT,
+    );
+
+    expect(intersectionArea(placed, currentPrice)).toBe(0);
+    expect(intersectionArea(placed, oldPrice)).toBe(0);
+    expect(intersectionArea(placed, title)).toBe(0);
+  });
+
   it("picks the least-bad position when every position collides", () => {
     // Saturated cluster: it must still return something on-screen rather than
     // failing to place, and it must prefer the cheapest overlap available.

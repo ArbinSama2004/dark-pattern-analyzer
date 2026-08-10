@@ -102,8 +102,8 @@ export function createExplainClient({
 
       if (!res.ok) {
         // The backend puts a human-readable reason in `detail` -- surfacing
-        // it verbatim is what makes "Ollama isn't running" and "your API key
-        // is wrong" distinguishable in the UI instead of both reading as
+        // it verbatim is what makes "no API key configured" and "Groq is
+        // unreachable" distinguishable in the UI instead of both reading as
         // "explanation failed".
         let detail = "";
         try {

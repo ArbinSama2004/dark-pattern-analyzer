@@ -1,15 +1,13 @@
 """Chat-completions client for the explanation endpoint.
 
-One client, two providers. Ollama (local, development) and Groq (hosted, demo)
-both expose the OpenAI chat-completions wire format, so switching between them
-is a base-URL and model-name change in the environment rather than a second
-code path to keep in sync. Anything genuinely provider-specific would have to
-live behind this interface, and so far nothing does.
+The provider is Groq, reached over the OpenAI chat-completions wire format.
+Nothing in this module is Groq-specific, so any OpenAI-compatible endpoint
+works by changing DP_LLM_BASE_URL and DP_LLM_MODEL -- but Groq is what is
+configured and tested.
 
 Deliberately not using an official SDK. The surface actually needed here is one
 POST returning one string; a vendor SDK would add a dependency whose version
-policy and auth model differ per provider, which is precisely the coupling this
-module exists to avoid.
+policy and auth model are its own, for no gain over a single httpx call.
 
 Failures are typed (LLMError) rather than leaked as raw httpx exceptions, so the
 route layer can map them onto HTTP status codes without knowing what transport
@@ -95,12 +93,9 @@ class ChatClient:
                 retryable=True,
             ) from exc
         except httpx.RequestError as exc:
-            # Ollama not running is by far the most common form of this during
-            # development, so the message names it rather than surfacing a bare
-            # connection error.
             raise LLMError(
                 f"could not reach the model provider at {self._config.base_url} "
-                f"({exc.__class__.__name__}). Is it running?",
+                f"({exc.__class__.__name__}). Check your network connection.",
                 retryable=True,
             ) from exc
 
