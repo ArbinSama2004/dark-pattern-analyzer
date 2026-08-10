@@ -8,10 +8,12 @@ import { ctaAsymmetry } from "./cta_asymmetry";
 import { lateFee } from "./late_fee";
 import { cancelOffsite } from "./cancel_offsite";
 import { discountBadge } from "./discount_badge";
+import { forcedActionGate } from "./forced_action_gate";
 import type { Rule, RuleHit } from "./types";
 
 /** All rules from docs/ARCHITECTURE.md 4.5, plus discount_badge for
- * e-commerce discount-badge pattern coverage. */
+ * e-commerce discount-badge pattern coverage and forced_action_gate (Fix 4,
+ * Part B) for structural corroboration of forced_action. */
 const RULES: Rule[] = [
   stockCounter,
   countdownTimer,
@@ -22,6 +24,7 @@ const RULES: Rule[] = [
   lateFee,
   cancelOffsite,
   discountBadge,
+  forcedActionGate,
 ];
 
 export function runRules(candidate: Candidate, el: Element): RuleHit[] {

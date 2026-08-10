@@ -198,4 +198,27 @@ describe("resolveOccurrence", () => {
     expect(resolved).toBeNull();
     expect(diagnostics.map((d) => d.outcome)).toEqual(["stale-recycled", "not-found"]);
   });
+
+  it("treats a missing item.tag as a non-match instead of throwing", () => {
+    // Regression test: a real "Extension context invalidated" + "Cannot
+    // read properties of undefined (reading 'toLowerCase')" pair, seen on a
+    // live page. ClassifyItemResult.tag is typed as always-present, but a
+    // stale chrome.storage.session "findings:<tabId>" entry written before
+    // this field existed can hand this function `undefined` at runtime --
+    // the type system can't catch that, since it's a value crossing a
+    // serialization boundary from a different build. This must not throw.
+    document.body.innerHTML = `<button id="btn">Add to Cart</button>`;
+    const btn = document.getElementById("btn")!;
+    const registry = new Map<string, Element>([["item-1", btn]]);
+
+    const brokenItem = {
+      ...item({ selector: "#btn" }),
+      tag: undefined as unknown as string,
+    };
+
+    expect(() => resolveOccurrence(brokenItem, registry)).not.toThrow();
+    // Registry tier requires a tag match too -- undefined never matches, so
+    // this correctly falls through rather than badging the wrong thing.
+    expect(resolveOccurrence(brokenItem, registry)).toBeNull();
+  });
 });

@@ -45,3 +45,5 @@ Thumbs.db
 !.vscode/settings.json
 !.vscode/extensions.json
 .idea/
+
+HANDOFF_FRONTEND_DEBUG.md

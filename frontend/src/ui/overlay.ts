@@ -25,7 +25,6 @@ const BADGE_STYLE = `
     cursor: pointer;
     pointer-events: auto;
     white-space: nowrap;
-    transform: translateY(-100%);
   }
   .badge:hover { background: #9a3412; }
   .badge.likely { background: #7c2d12; }
@@ -44,6 +43,18 @@ const TRANSIENT_HIGHLIGHT_MS = 1500;
 
 const BADGE_APPROX_WIDTH = 140;
 const BADGE_APPROX_HEIGHT = 20;
+/** Vertical clearance kept between a badge and whatever it's placed next to
+ * -- the target it's labeling, or another badge. Without this, a badge's
+ * edge sits flush against the adjacent content with zero breathing room,
+ * which on a dense list (search results, product grid) reads as the badge
+ * "covering" the neighboring row's text. */
+const BADGE_GAP = 6;
+/** Bounded settle pass for pushing a badge below whatever it overlaps.
+ * Re-scans every already-placed box on each attempt (not just the one that
+ * caused the last push), so a chain of three or four co-located findings
+ * still resolves to a clean stack instead of colliding after the first
+ * nudge. */
+const MAX_SETTLE_ATTEMPTS = 24;
 
 interface MountedOverlay {
   update(items: ClassifyItemResult[]): void;
@@ -90,6 +101,7 @@ export function mountOverlay(
   let resizeObserver: ResizeObserver | null = null;
   let rafHandle: number | null = null;
   let destroyed = false;
+  let lastLoggedDebugSignature = "";
 
   /**
    * Ids whose target element is currently outlined. Keyed by *item id*, not
@@ -138,6 +150,45 @@ export function mountOverlay(
     return item.findings[0]; // mergeFindings() already sorts by score desc
   }
 
+  /**
+   * True if the proposed badge box would visually cover real, unrelated
+   * page content -- not the badge's own target, not our own overlay (other
+   * badges are handled by the settle pass in render(), not here).
+   * Sample-point based rather than exhaustive: a handful of points along the
+   * box's edges is enough to catch "this lands on top of a price row" while
+   * staying cheap enough to run per badge per render.
+   */
+  function overlapsForeignContent(
+    top: number,
+    left: number,
+    right: number,
+    bottom: number,
+    target: Element,
+  ): boolean {
+    const samplePoints: Array<[number, number]> = [
+      [left + 4, top + 2],
+      [right - 4, top + 2],
+      [left + 4, bottom - 2],
+      [right - 4, bottom - 2],
+      [(left + right) / 2, (top + bottom) / 2],
+    ];
+    for (const [x, y] of samplePoints) {
+      if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) continue;
+      const found = document.elementFromPoint(x, y);
+      if (!found) continue;
+      // Our own overlay host (a closed shadow root is opaque to
+      // elementFromPoint from outside, so another one of our own badges
+      // reports as the host, not itself) -- not foreign, and already
+      // handled by the badge-vs-badge settle pass.
+      if (found === host) continue;
+      // The target's own content, or an ancestor/descendant of it -- this
+      // is what the badge is *labeling*, not something it would obscure.
+      if (found === target || target.contains(found) || found.contains(target)) continue;
+      return true;
+    }
+    return false;
+  }
+
   function render() {
     if (destroyed) return;
     // An SPA route change can wipe subtrees wholesale; re-attach rather than
@@ -159,26 +210,56 @@ export function mountOverlay(
         | "zero-size"
         | "off-screen"
         | "sticky-chrome"
-        | "rendered";
+        | "rendered"
+        | "error";
       rect?: { top: number; left: number; width: number; height: number };
     }> = [];
 
-    // Boxes already occupied this frame, so badges anchored to nearby (or
-    // identically clamped) elements stack instead of printing on top of each
-    // other. Without this, several findings landing near the same corner
-    // render as one unreadable smear.
-    const placed: Array<{ top: number; left: number }> = [];
+    // First pass: resolve every item to a placeable {el, rect, finding}
+    // entry, applying every existing filter (no-element, disconnected,
+    // sticky chrome, zero-size, off-screen) exactly as before. Positioning
+    // happens in a second pass, over entries sorted by document position --
+    // that ordering is what makes the collision settle-pass below behave
+    // predictably instead of depending on `current`'s arbitrary array order.
+    interface Placeable {
+      item: ClassifyItemResult;
+      el: Element;
+      finding: ClassifyItemResult["findings"][number];
+      rect: DOMRect;
+    }
+    const placeable: Placeable[] = [];
     const pinnedElements = new Set<HTMLElement>();
 
     for (const item of current) {
+      // The whole point of clearing `container` before this loop runs is to
+      // rebuild it fresh -- which means an uncaught exception from any one
+      // item (a stale item.tag surviving a chrome.storage.session entry
+      // written before this field existed; any other future surprise) used
+      // to abort the loop with the container already emptied and never
+      // repopulated. Every subsequent scroll-triggered render hit the same
+      // item and failed identically -- "badges disappear after scrolling
+      // and never come back" was this, not a positioning bug. One item
+      // failing must cost that one badge, not the whole overlay.
+      try {
+        renderOne(item);
+      } catch (err) {
+        debug.push({ id: item.id, text: item.text, status: "error" });
+        console.error(
+          `[dark-pattern-analyzer] overlay: failed to render item "${item.text}" (id=${item.id}) -- skipped, other badges unaffected.`,
+          err,
+        );
+      }
+    }
+
+    function renderOne(item: ClassifyItemResult): void {
       const el = resolveElement?.(item) ?? document.querySelector(item.selector);
       if (!el) {
         debug.push({ id: item.id, text: item.text, status: "no-element" });
-        continue;
+        return;
       }
       if (!el.isConnected) {
         debug.push({ id: item.id, text: item.text, status: "disconnected" });
-        continue;
+        return;
       }
       // Safety net for items that predate the extraction-side filter --
       // results rehydrated from chrome.storage.session, or cached by the
@@ -186,12 +267,12 @@ export function mountOverlay(
       // produces a badge welded to the top-left corner while scrolling.
       if (stickyChromeAncestor(el)) {
         debug.push({ id: item.id, text: item.text, status: "sticky-chrome" });
-        continue;
+        return;
       }
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) {
         debug.push({ id: item.id, text: item.text, status: "zero-size" });
-        continue;
+        return;
       }
       // Skip elements currently scrolled out of the viewport entirely --
       // a badge positioned off-screen is not just wasted, it can also throw
@@ -211,17 +292,93 @@ export function mountOverlay(
           status: "off-screen",
           rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
         });
-        continue;
+        return;
       }
 
       const finding = topFinding(item);
-      if (!finding) continue;
+      if (!finding) return;
       debug.push({
         id: item.id,
         text: item.text,
         status: "rendered",
         rect: { top: rect.top, left: rect.left, width: rect.width, height: rect.height },
       });
+      placeable.push({ item, el, finding, rect });
+    }
+
+    // Sort top-to-bottom (document/viewport order), so the settle pass below
+    // always pushes a *later* badge down past an *earlier* one -- never the
+    // reverse -- which is what keeps the stack visually coherent instead of
+    // depending on whatever order `current` happened to list findings in.
+    placeable.sort((a, b) => a.rect.top - b.rect.top);
+
+    interface Box {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    }
+    const placedBoxes: Box[] = [];
+
+    for (const { item, el, finding, rect } of placeable) {
+      const left = Math.min(
+        Math.max(rect.left, 4),
+        window.innerWidth - BADGE_APPROX_WIDTH - 4,
+      );
+      const right = left + BADGE_APPROX_WIDTH;
+
+      // Prefer directly above the target, with real clearance (BADGE_GAP) --
+      // not flush against it. If there isn't room above (the element sits
+      // near the very top of the viewport), place below instead of clamping
+      // upward into whatever content precedes it.
+      let top = rect.top - BADGE_GAP - BADGE_APPROX_HEIGHT;
+      let bottom = top + BADGE_APPROX_HEIGHT;
+      if (top < 4) {
+        top = rect.bottom + BADGE_GAP;
+        bottom = top + BADGE_APPROX_HEIGHT;
+      }
+
+      // A gap large enough to clear the *target itself* can still be too
+      // small to clear whatever sits directly above it -- a real bug caught
+      // on a live page: a price block where the current-price row sat close
+      // enough above the discount badge's target that the badge, placed
+      // "above" per the rule just above, landed on top of the price digits
+      // instead. If the proposed box actually covers unrelated rendered
+      // content, flip to below the target instead.
+      if (overlapsForeignContent(top, left, right, bottom, el)) {
+        const belowTop = rect.bottom + BADGE_GAP;
+        const belowBottom = belowTop + BADGE_APPROX_HEIGHT;
+        // Only switch if below is actually clearer -- an equally-cramped
+        // "below" is no improvement, and the settle pass further down still
+        // needs *a* starting position even in a genuinely dense cluster.
+        if (!overlapsForeignContent(belowTop, left, right, belowBottom, el)) {
+          top = belowTop;
+          bottom = belowBottom;
+        }
+      }
+
+      // Settle pass: push straight down past anything already placed that
+      // this box would overlap (both axes), re-checking from scratch each
+      // attempt so a chain of several co-located findings still resolves to
+      // a clean, non-overlapping stack rather than colliding after the first
+      // nudge like the previous single-shot version did.
+      for (let attempt = 0; attempt < MAX_SETTLE_ATTEMPTS; attempt += 1) {
+        const clash = placedBoxes.find(
+          (box) => left < box.right && right > box.left && top < box.bottom && bottom > box.top,
+        );
+        if (!clash) break;
+        top = clash.bottom + BADGE_GAP;
+        bottom = top + BADGE_APPROX_HEIGHT;
+      }
+      // Final viewport clamp in case a long settle chain pushed the badge
+      // below the fold -- accepting a possible overlap here (rare: only on
+      // an extremely dense cluster) is preferable to an invisible badge.
+      if (bottom > window.innerHeight - 4) {
+        bottom = window.innerHeight - 4;
+        top = bottom - BADGE_APPROX_HEIGHT;
+      }
+
+      placedBoxes.push({ top, bottom, left, right });
 
       const badge = document.createElement("div");
       const isPinned = pinnedIds.has(item.id);
@@ -230,18 +387,6 @@ export function mountOverlay(
         applyOutline(el);
         if (el instanceof HTMLElement) pinnedElements.add(el);
       }
-      // Anchor near the top-left corner, not top-right (rect.right). Wide
-      // block-level elements -- a product description paragraph, a full-row
-      // bullet list item -- can be nearly viewport-width, which pushed the
-      // badge off-screen or far from the text it actually describes. Clamp
-      // both axes so the badge always stays visible even for elements that
-      // start near an edge.
-      const { top, left } = avoidCollisions(
-        Math.min(Math.max(rect.top, 4), window.innerHeight - BADGE_APPROX_HEIGHT - 4),
-        Math.min(Math.max(rect.left, 4), window.innerWidth - BADGE_APPROX_WIDTH - 4),
-        placed,
-      );
-      placed.push({ top, left });
       badge.style.top = `${top}px`;
       badge.style.left = `${left}px`;
       badge.textContent =
@@ -264,32 +409,31 @@ export function mountOverlay(
 
     reconcileOutlines(pinnedElements);
     (window as unknown as Record<string, unknown>).__dpRenderDebug = debug;
-  }
 
-  /** Nudges a badge down until it no longer overlaps one already placed this
-   * frame. Bounded so a page with dozens of co-located findings degrades to
-   * overlapping badges rather than a badge column running off the screen. */
-  function avoidCollisions(
-    top: number,
-    left: number,
-    placed: Array<{ top: number; left: number }>,
-  ): { top: number; left: number } {
-    const step = BADGE_APPROX_HEIGHT + 4;
-    let candidateTop = top;
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      const clash = placed.some(
-        (p) =>
-          Math.abs(p.top - candidateTop) < BADGE_APPROX_HEIGHT &&
-          Math.abs(p.left - left) < BADGE_APPROX_WIDTH,
+    // Print the same data `window.__dpRenderDebug` holds, not just assign it.
+    // Content scripts run in an isolated JS world (a separate `window` from
+    // the page) -- DevTools' Console evaluates typed expressions like
+    // `window.__dpRenderDebug` against whatever context is currently
+    // selected in its context dropdown (defaults to the page's main world,
+    // where this global doesn't exist), so "undefined" there does not mean
+    // this never ran. console.log output, unlike a typed expression, is
+    // always visible in the default console view regardless of that
+    // dropdown -- so logging here is what actually reaches a user who hasn't
+    // switched contexts. Deduped against the last logged signature so a
+    // steady page (nothing changed) doesn't reprint on every scroll-driven
+    // render.
+    const signature = debug.map((d) => `${d.id}:${d.status}`).join("|");
+    if (signature !== lastLoggedDebugSignature) {
+      lastLoggedDebugSignature = signature;
+      const byStatus = debug.reduce<Record<string, number>>((acc, d) => {
+        acc[d.status] = (acc[d.status] ?? 0) + 1;
+        return acc;
+      }, {});
+      console.log(
+        `[dark-pattern-analyzer] render: ${debug.length} item(s) -- ${JSON.stringify(byStatus)}`,
+        debug,
       );
-      if (!clash) break;
-      candidateTop += step;
-      if (candidateTop > window.innerHeight - BADGE_APPROX_HEIGHT - 4) {
-        candidateTop = top;
-        break;
-      }
     }
-    return { top: candidateTop, left };
   }
 
   /** Coalesce the render bursts that scroll/resize/mutation produce into one

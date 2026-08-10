@@ -22,6 +22,8 @@ const RULE_DESCRIPTIONS: Record<string, string> = {
     "Cancelling routes you off the page (phone/email/another site) instead of handling it here.",
   discount_badge:
     "A discount percentage badge may be inflated or artificial, creating a false sense of savings.",
+  forced_action_gate:
+    "A required field or modal step explicitly states you must complete it to continue.",
 };
 
 function describeRule(rule: string, label: Label): string {

@@ -141,7 +141,7 @@ locally, calls the backend, and presents findings legibly.
 | DOM extractor: TreeWalker, shadow DOM, same-origin iframes | `frontend/src/lib/extract/` |
 | Debounced `MutationObserver` | `frontend/src/entrypoints/content.ts` |
 | Batching, dedupe, retry, session cache | `frontend/src/entrypoints/background.ts` |
-| Eight deterministic rules | `frontend/src/lib/rules/` |
+| Ten deterministic rules (incl. discount_badge, forced_action_gate) | `frontend/src/lib/rules/` |
 | Overlay badges in an isolated shadow root | `frontend/src/ui/` |
 | Side panel: grouped findings, page score, explanations | `frontend/src/entrypoints/sidepanel/` |
 

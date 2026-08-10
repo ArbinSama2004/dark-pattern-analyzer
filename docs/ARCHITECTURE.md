@@ -169,8 +169,15 @@ candidates plus structural signals.
 5. **Candidate filter** (cheap, before any network call): drop empty strings, strings
    under 3 characters, pure numbers, and text longer than 200 chars (article body, not
    UI chrome).
-6. **Hash and dedupe:** `id = sha1(lang + "\u0000" + text)`. Never send a hash the
-   session has already resolved.
+6. **Hash and dedupe:** two deliberately different ids, not one (`frontend/src/lib/hash.ts`).
+   `occurrenceId = sha1(lang + NUL + selector + NUL + text)` is `candidate.id` --
+   unique per *DOM occurrence*, so three separate "Add to Cart" buttons on a listing
+   page are three independently addressable candidates, never collapsed into one.
+   `modelCacheKey = sha1(lang + NUL + tag + NUL + role + NUL + text)` is what the
+   extension's own session cache is keyed by -- distinct occurrences with identical
+   model input are still allowed to share one cached result. Never send a model input
+   the session cache has already resolved; never use `occurrenceId` as that cache
+   key, or every repeated control pays for its own forward pass.
 
 **Change detection**
 

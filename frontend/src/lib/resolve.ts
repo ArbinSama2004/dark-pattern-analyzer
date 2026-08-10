@@ -82,7 +82,18 @@ function normalizeText(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
+/**
+ * `tag` is typed as always-present (ClassifyItemResult.tag), but a value
+ * crossing chrome.storage.session survives a build that predates the field
+ * -- a tab left open across an extension reload, or a "findings:<tabId>"
+ * entry written by an older content script, can hand this function
+ * `undefined` at runtime despite what the type says. Treating that as "no
+ * match" (not throwing) is what stopped a single stale stored item from
+ * crashing overlay.ts's entire render pass -- see that file's per-item
+ * try/catch for the other half of this fix.
+ */
 function tagMatches(el: Element, tag: string): boolean {
+  if (typeof tag !== "string") return false;
   return el.tagName.toLowerCase() === tag.toLowerCase();
 }
 

@@ -12,6 +12,7 @@ import type {
   ClassifyItemResult,
   ClassifyProgressMessage,
   ClassifyResultMessage,
+  ExportTraceMessage,
   ScrollToMessage,
 } from "../lib/messaging";
 import { recordObservation, isAnimated } from "../lib/timer-tracker";
@@ -46,6 +47,33 @@ const MIN_EXTRACTION_INTERVAL_MS = 1000;
  */
 function churnKeyFor(candidate: { selector: string; text: string }): string {
   return `${candidate.selector}|${candidate.text.replace(/\d+/g, "#")}`;
+}
+
+/**
+ * One row of the full extraction -> classification trace (see `trace` in
+ * main() and window.__dpTrace / window.__dpExportTrace()). Built to answer
+ * exactly one question without guessing: for this specific piece of text,
+ * what actually happened -- was it extracted, sent, and what did the model
+ * and local rules decide?
+ */
+interface TraceEntry {
+  id: string;
+  text: string;
+  tag: string;
+  role: string;
+  step: string | null;
+  selector: string;
+  /** Local rule names that fired for this candidate (independent of the
+   * model -- see rules/index.ts). */
+  ruleHits: string[];
+  sentToModel: boolean;
+  /** null = no classify response has been observed for this id yet.
+   * [] = confirmed benign (sent, and absent from every subsequent
+   * response -- see the sendMessage handler in runExtraction for exactly
+   * how that's inferred). Non-empty = the finding labels present. */
+  findingLabels: string[] | null;
+  firstSeenAt: number;
+  lastSeenAt: number;
 }
 
 function detectPageLang(): Lang {
@@ -112,6 +140,59 @@ export default defineContentScript({
      * entry instead of a fresh one per tick -- see churnKeyFor. */
     const sentChurnKeys = new Set<string>();
 
+    // Full extraction -> classification join, for auditing "why does this
+    // exact text have no badge" without guessing. Every candidate this page
+    // has ever extracted gets one entry here, updated in place as its fate
+    // becomes known -- this is the join `window.__dpLastPairs` and
+    // `window.__dpRenderDebug` couldn't give on their own, since neither one
+    // alone says whether a *specific* candidate was ever sent, and if so,
+    // what the model/rules actually decided for it. See `trace` below and
+    // its exposure as window.__dpTrace / window.__dpExportTrace() near the
+    // bottom of this file.
+    const trace = new Map<string, TraceEntry>();
+
+    /**
+     * Single funnel for every place a results list arrives (the direct
+     * sendMessage response, background.ts's per-batch classify-progress
+     * push, and the chrome.storage.onChanged fallback) -- updates `trace`
+     * with what each item's findings actually are, then does what the three
+     * call sites already did (overlay.update), then schedules the debounced
+     * console table so the trace is visible without typing anything.
+     */
+    function applyResults(items: ClassifyItemResult[]): void {
+      const now = Date.now();
+      for (const item of items) {
+        const labels = item.findings.map((f) => f.label);
+        const entry = trace.get(item.id);
+        if (entry) {
+          entry.findingLabels = labels;
+          entry.lastSeenAt = now;
+        } else {
+          // A result for an id with no base trace entry (e.g. a progress
+          // push racing an in-flight extraction pass) -- recorded anyway so
+          // the trace stays complete instead of silently dropping it.
+          trace.set(item.id, {
+            id: item.id,
+            text: item.text,
+            tag: item.tag,
+            role: item.role,
+            step: null,
+            selector: item.selector,
+            ruleHits: [],
+            sentToModel: true,
+            findingLabels: labels,
+            firstSeenAt: now,
+            lastSeenAt: now,
+          });
+        }
+      }
+      overlay.update(items);
+      scheduleTraceSummaryLog(trace);
+    }
+
+    (window as unknown as Record<string, unknown>).__dpTrace = trace;
+    (window as unknown as Record<string, unknown>).__dpExportTrace = () => exportTrace(trace);
+
     let debounceHandle: ReturnType<typeof setTimeout> | null = null;
     let lastExtractionAt = 0;
 
@@ -142,6 +223,32 @@ export default defineContentScript({
           !sentIds.has(candidate.id) && !sentChurnKeys.has(churnKeyFor(candidate)),
       );
 
+      // Base trace entry for every candidate this pass saw, whether new or
+      // already sent -- findingLabels stays whatever it already was (null
+      // until a response says otherwise) so a repeat sighting of an
+      // already-resolved candidate doesn't erase its known outcome.
+      const now = Date.now();
+      for (const { candidate, ruleHits } of withHits) {
+        const existing = trace.get(candidate.id);
+        if (existing) {
+          existing.lastSeenAt = now;
+          continue;
+        }
+        trace.set(candidate.id, {
+          id: candidate.id,
+          text: candidate.text,
+          tag: candidate.tag,
+          role: candidate.role,
+          step: candidate.step,
+          selector: candidate.selector,
+          ruleHits: ruleHits.map((h) => h.rule),
+          sentToModel: false,
+          findingLabels: null,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        });
+      }
+
       // console.log, not console.debug -- DevTools hides the "Verbose" level
       // by default, so a debug-level log here silently looks like "nothing
       // happened" even when extraction ran fine. Kept at log level so this
@@ -163,10 +270,23 @@ export default defineContentScript({
         ({ candidate }) =>
           !sentIds.has(candidate.id) && sentChurnKeys.has(churnKeyFor(candidate)),
       ).length;
+      // Logged as a console.log argument (not just "inspect window.X"),
+      // same reasoning as overlay.ts's render-debug logging: a typed
+      // `window.__dpLastPairs` expression only works if DevTools' Console
+      // context dropdown is pointed at this isolated world, which is easy to
+      // miss -- console.log output shows up regardless. Limited to the
+      // *newly sent* candidates (not all `pairs`) so this doesn't reprint
+      // the whole page's candidate list on every debounce tick once the
+      // page has settled.
       console.log(
         `[dark-pattern-analyzer] extracted ${pairs.length} candidates, ${toSend.length} new ` +
-          `(${churnSuppressed} churn-suppressed, lang=${lang}). ` +
-          `Inspect window.__dpLastPairs for the exact text sent.`,
+          `(${churnSuppressed} churn-suppressed, lang=${lang}):`,
+        toSend.map(({ candidate }) => ({
+          text: candidate.text,
+          tag: candidate.tag,
+          role: candidate.role,
+          selector: candidate.selector,
+        })),
       );
 
       // The registry has just been repointed at the current nodes, so ask the
@@ -180,6 +300,8 @@ export default defineContentScript({
       for (const { candidate } of toSend) {
         sentIds.add(candidate.id);
         sentChurnKeys.add(churnKeyFor(candidate));
+        const entry = trace.get(candidate.id);
+        if (entry) entry.sentToModel = true;
       }
 
       try {
@@ -194,7 +316,33 @@ export default defineContentScript({
         );
 
         if (response?.results) {
-          overlay.update(response.results);
+          // background.ts's accumulator (see persistProgress) only ever
+          // returns candidates with at least one finding -- a benign result
+          // is silently absent, by design, to keep the overlay/storage
+          // payload small. That means "not in response.results" is not
+          // automatically "still pending": for every id in *this* toSend
+          // batch specifically, the round trip that just completed
+          // processed all of them (background.ts's persistProgress iterates
+          // exactly `capped`, i.e. this message's candidates, on every call
+          // including the final one) -- so any of *this batch's* ids still
+          // missing from the response are confirmed benign, not unresolved.
+          // Ids from earlier batches are untouched here; they were already
+          // resolved one way or another by their own round trip.
+          // (One disclosed edge case: if the accumulator's own
+          // MAX_SNIPPETS_PER_PAGE eviction ever kicks in, an evicted
+          // non-benign id would also read as "confirmed benign" here --
+          // irrelevant in practice at the finding counts seen so far, but
+          // not information this diff can distinguish.)
+          const returnedIds = new Set(response.results.map((r) => r.id));
+          for (const { candidate } of toSend) {
+            if (returnedIds.has(candidate.id)) continue;
+            const entry = trace.get(candidate.id);
+            if (entry) {
+              entry.findingLabels = [];
+              entry.lastSeenAt = Date.now();
+            }
+          }
+          applyResults(response.results);
         }
       } catch (err) {
         // The background worker can be mid-restart, or the backend can be
@@ -261,9 +409,13 @@ export default defineContentScript({
     // until the whole page's batches finish -- see background.ts's
     // persistProgress for why).
     chrome.runtime.onMessage.addListener(
-      (message: ScrollToMessage | ClassifyProgressMessage) => {
+      (message: ScrollToMessage | ClassifyProgressMessage | ExportTraceMessage) => {
         if (message.type === "dp/scroll-to") {
           scrollAndHighlight(message.selector);
+        } else if (message.type === "dp/export-trace") {
+          // Popup-triggered, not a console command -- see messaging.ts's
+          // ExportTraceMessage doc comment for why.
+          exportTrace(trace);
         } else if (message.type === "dp/classify-progress") {
           // Primary overlay update path: pushed from background.ts after
           // every batch. Now works on real e-commerce pages because
@@ -273,7 +425,7 @@ export default defineContentScript({
           console.log(
             `[dark-pattern-analyzer] dp/classify-progress received: ${message.results.length} item(s)`,
           );
-          overlay.update(message.results);
+          applyResults(message.results);
         }
       },
     );
@@ -314,7 +466,7 @@ export default defineContentScript({
           console.log(
             `[dark-pattern-analyzer] storage.onChanged overlay update: ${newValue.items.length} item(s)`,
           );
-          overlay.update(newValue.items);
+          applyResults(newValue.items);
         });
       })
       .catch((err: unknown) =>
@@ -335,6 +487,37 @@ export default defineContentScript({
  */
 const RESOLVE_DEBUG_LIMIT = 200;
 const resolveDebugLog: ResolveDiagnostic[] = [];
+let resolveSummaryTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * A resolveOccurrence() call happens once per rendered item, so a whole
+ * render pass fires this dozens of times in a row -- logging a summary on
+ * every call would spam the console far worse than the plain "undefined"
+ * problem it's meant to fix. Trailing-debounced: whichever call is *last* in
+ * a burst is the one that actually prints, ~80ms after the burst quiets
+ * down, giving one summary line per render pass instead of one per item.
+ */
+function scheduleResolveSummaryLog(): void {
+  if (resolveSummaryTimer) clearTimeout(resolveSummaryTimer);
+  resolveSummaryTimer = setTimeout(() => {
+    resolveSummaryTimer = null;
+    const byOutcome = resolveDebugLog.reduce<Record<string, number>>((acc, d) => {
+      acc[d.outcome] = (acc[d.outcome] ?? 0) + 1;
+      return acc;
+    }, {});
+    // Plain console.log, not just the window.__dpResolveDebug assignment --
+    // see overlay.ts's matching comment: DevTools' Console evaluates typed
+    // expressions against whichever context is selected in its dropdown
+    // (defaults to the page's main world, not this isolated-world global),
+    // so a user who hasn't switched contexts sees "undefined" no matter how
+    // much data is actually sitting on this window. console.log output does
+    // not have that problem.
+    console.log(
+      `[dark-pattern-analyzer] resolve: ${resolveDebugLog.length} recent lookup(s) -- ${JSON.stringify(byOutcome)}`,
+      resolveDebugLog,
+    );
+  }, 80);
+}
 
 function recordResolveDiagnostic(diagnostic: ResolveDiagnostic): void {
   if (diagnostic.outcome === "ambiguous" || diagnostic.outcome === "claimed") {
@@ -347,6 +530,93 @@ function recordResolveDiagnostic(diagnostic: ResolveDiagnostic): void {
   resolveDebugLog.push(diagnostic);
   if (resolveDebugLog.length > RESOLVE_DEBUG_LIMIT) resolveDebugLog.shift();
   (window as unknown as Record<string, unknown>).__dpResolveDebug = resolveDebugLog;
+  scheduleResolveSummaryLog();
+}
+
+let traceSummaryTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Trailing-debounced console.table dump of the full extraction ->
+ * classification trace -- same reasoning as scheduleResolveSummaryLog:
+ * printed automatically so it's visible without typing a `window.__dpTrace`
+ * expression into whatever context DevTools happens to have selected.
+ * console.table renders one row per candidate with columns for text/tag/
+ * role/sent/findings, which is what makes "compare this product's title to
+ * that one's" a five-second visual scan instead of expanding hundreds of
+ * collapsed objects by hand.
+ */
+function scheduleTraceSummaryLog(trace: ReadonlyMap<string, TraceEntry>): void {
+  if (traceSummaryTimer) clearTimeout(traceSummaryTimer);
+  traceSummaryTimer = setTimeout(() => {
+    traceSummaryTimer = null;
+    const rows = [...trace.values()];
+    // "not-sent" (a churn-suppressed duplicate -- see churnKeyFor, e.g. a
+    // countdown timer's later ticks reusing the first tick's classification)
+    // is deliberately its own bucket, distinct from "awaiting" (genuinely
+    // sent, response not observed yet). The two look identical if you only
+    // check `findingLabels === null` -- conflating them is exactly what
+    // made an intentionally-skipped duplicate look like a stuck request the
+    // first time this trace was read.
+    const counts = rows.reduce(
+      (acc, r) => {
+        if (r.findingLabels !== null) {
+          if (r.findingLabels.length === 0) acc.benign += 1;
+          else acc.flagged += 1;
+        } else if (r.sentToModel) {
+          acc.awaiting += 1;
+        } else {
+          acc.notSent += 1;
+        }
+        return acc;
+      },
+      { flagged: 0, benign: 0, awaiting: 0, notSent: 0 },
+    );
+    console.log(
+      `[dark-pattern-analyzer] trace: ${rows.length} candidate(s) total -- ` +
+        `${counts.flagged} flagged, ${counts.benign} confirmed benign, ` +
+        `${counts.awaiting} awaiting response, ${counts.notSent} not sent (duplicates). ` +
+        `Run window.__dpExportTrace() to download the full trace as JSON.`,
+    );
+    console.table(
+      rows.map((r) => ({
+        text: r.text.length > 60 ? `${r.text.slice(0, 60)}…` : r.text,
+        tag: r.tag,
+        role: r.role,
+        step: r.step,
+        sent: r.sentToModel,
+        status:
+          r.findingLabels === null
+            ? r.sentToModel
+              ? "awaiting"
+              : "not-sent (duplicate)"
+            : r.findingLabels.length === 0
+              ? "benign"
+              : r.findingLabels.join("+"),
+        ruleHits: r.ruleHits.join(",") || undefined,
+      })),
+    );
+  }, 400);
+}
+
+/**
+ * Downloads the complete, untruncated trace as a JSON file -- for pasting
+ * slices elsewhere, diffing two page loads, or grepping locally in a way
+ * the console's row limit and object truncation don't allow. Exposed as
+ * window.__dpExportTrace(); no `downloads` permission needed since this is
+ * just a same-page anchor-click download, not the chrome.downloads API.
+ */
+function exportTrace(trace: ReadonlyMap<string, TraceEntry>): void {
+  const rows = [...trace.values()];
+  const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `dark-pattern-analyzer-trace-${Date.now()}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  console.log(`[dark-pattern-analyzer] exported ${rows.length} trace row(s).`);
 }
 
 /** Lightweight local mirror of selector.ts's stableSelector, used only by

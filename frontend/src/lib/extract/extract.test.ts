@@ -143,3 +143,48 @@ describe("extractCandidatesWithElements occurrence identity (Fix 1)", () => {
     expect(addToCart[0]?.el).toBe(document.getElementById("only"));
   });
 });
+
+describe("extractCandidatesWithElements self-duplicate collapsing", () => {
+  it("collapses a CSS hover/flip duplicate down to one copy", async () => {
+    // Reproduces a real pattern found via a live Amazon trace: a label
+    // rendered twice back-to-back with no separator, for a CSS hover/flip
+    // animation that swaps between them via transform/overflow clipping --
+    // not display/visibility/opacity, so isVisible() sees both copies as
+    // visible. The outer div here is the leaf-block candidate; its one
+    // inline child's own nested content is already the doubled string.
+    document.body.innerHTML = `
+      <div id="card">
+        <span><span>Discover more</span><span>Discover more</span></span>
+      </div>
+    `;
+    stubOffsetParent(document.getElementById("card") as HTMLElement, document.body);
+
+    const candidates = await extractCandidates("en");
+    const texts = candidates.map((c) => c.text);
+    expect(texts).toContain("Discover more");
+    expect(texts).not.toContain("Discover moreDiscover more");
+  });
+
+  it("does not collapse a whole-string repeat below the minimum half-length", async () => {
+    // Guard against over-eager collapsing: "abcabc" is a genuine T+T repeat
+    // (half = "abc" = "abc"), but at half-length 3 -- below
+    // MIN_DUPLICATE_HALF_LENGTH -- a naive "does the first half equal the
+    // second half" check with no length floor would wrongly mangle this
+    // kind of short coincidental repeat, so it must survive intact.
+    document.body.innerHTML = `<p id="p">abcabc</p>`;
+    stubOffsetParent(document.getElementById("p") as HTMLElement, document.body);
+
+    const candidates = await extractCandidates("en");
+    const texts = candidates.map((c) => c.text);
+    expect(texts).toContain("abcabc");
+  });
+
+  it("does not alter text that merely starts with a repeated substring", async () => {
+    document.body.innerHTML = `<p id="p">Free shipping on all orders today</p>`;
+    stubOffsetParent(document.getElementById("p") as HTMLElement, document.body);
+
+    const candidates = await extractCandidates("en");
+    const texts = candidates.map((c) => c.text);
+    expect(texts).toContain("Free shipping on all orders today");
+  });
+});

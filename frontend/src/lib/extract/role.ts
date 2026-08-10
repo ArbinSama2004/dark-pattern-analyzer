@@ -48,9 +48,103 @@ const STOCK_CLASS_RE = /stock|inventory/i;
 const TIMER_CLASS_RE = /timer|countdown/i;
 const BANNER_CLASS_RE = /banner|announcement/i;
 
-/** Matches text that is unmistakably a discount badge regardless of class
- * name, e.g. "-8%", "15% off", "Save NPR 300", "₹200 off". */
-const DISCOUNT_TEXT_RE = /^-\d+%$|^\d+%\s*off\b|\bsave\s+[\d,]+|\bsave\s+\d+%/i;
+/**
+ * Matches text that is unmistakably a discount badge regardless of class
+ * name, e.g. "-8%", "15% off", "Save NPR 300", "₹200 off".
+ *
+ * `-\d+%` is matched as its own token (bounded by start/whitespace on
+ * either side), not anchored to the whole string. A real trace from a live
+ * page (dark-pattern-analyzer-trace-*.json) caught the anchored version
+ * missing "Rs. 2,499 -54%" -- the exact same discount as an isolated "-54%"
+ * node elsewhere on the page, which DID match and got flagged. Whether a
+ * site's markup joins the price and the discount into one text node or
+ * keeps them in separate elements is a template detail with no bearing on
+ * whether the discount itself is worth the same role -- and, in turn, the
+ * same downstream model signal.
+ */
+const DISCOUNT_TEXT_RE = /(?:^|\s)-\d+%(?:\s|$)|\b\d+%\s*off\b|\bsave\s+[\d,]+|\bsave\s+\d+%/i;
+
+/**
+ * Fix 4, Part A: signals for structural UI controls that are clickable
+ * buttons but not an accept-side "do the thing" call to action -- carousel
+ * arrows, pagination, filter/sort toggles, expand/collapse, close buttons,
+ * quantity steppers, menu/dropdown openers. The previous rule was "any
+ * <button> or role=button that matched neither wordlist is cta", which
+ * swept all of these into "cta" too.
+ *
+ * Matched against the accessible name (aria-label/title -- the more
+ * deliberate signal an icon-only control usually carries) and class/id
+ * tokens. Deliberately does NOT match on bare visible text alone for most
+ * categories: "next"/"menu" etc. are common enough words in genuine CTA
+ * copy (a checkout wizard's own "Next" button, a restaurant's "Menu" link)
+ * that matching them without a structural or accessible-name anchor would
+ * risk demoting real CTAs instead of narrowing false ones. Close is the one
+ * exception, since "close"/"×"/"✕" as an entire button's content is not
+ * plausible CTA wording.
+ */
+const CAROUSEL_CONTROL_RE =
+  /\b(carousel|slider|slide|gallery)\b.*\b(next|prev(ious)?)\b|\b(next|prev(ious)?)\b.*\b(carousel|slider|slide|gallery)\b/i;
+const PAGINATION_RE = /\bpagination\b|\b(next|prev(ious)?)[\s-]*page\b|\bpage[\s-]*(next|prev(ious)?)\b/i;
+const FILTER_SORT_RE = /\b(filter|sort)\b/i;
+const EXPAND_COLLAPSE_RE = /\b(expand|collapse|accordion)\b/i;
+const CLOSE_CONTROL_RE = /^(close|dismiss|×|✕|✖)$/i;
+const QUANTITY_RE = /\b(qty|quantity)\b|\b(increase|decrease|increment|decrement)\b/i;
+const MENU_DROPDOWN_RE = /\b(dropdown|menu)\b/i;
+
+/**
+ * True for a button-like element whose accessible name or class/id marks it
+ * as one of the generic UI-control categories above, rather than an
+ * accept-side call to action. `aria-expanded`/`aria-haspopup` are checked
+ * directly (not by wording) because they are the standard, deliberate ARIA
+ * markers for a toggle/popup-opener regardless of what text or class the
+ * site happens to use.
+ */
+function isGenericUiControl(el: Element, text: string, accessibleName: string, attrs: string): boolean {
+  if (el.hasAttribute("aria-expanded") || el.hasAttribute("aria-haspopup")) return true;
+
+  const name = accessibleName.toLowerCase();
+  if (CAROUSEL_CONTROL_RE.test(name) || CAROUSEL_CONTROL_RE.test(attrs)) return true;
+  if (PAGINATION_RE.test(name) || PAGINATION_RE.test(attrs)) return true;
+  if (FILTER_SORT_RE.test(name) || FILTER_SORT_RE.test(attrs)) return true;
+  if (EXPAND_COLLAPSE_RE.test(name) || EXPAND_COLLAPSE_RE.test(attrs)) return true;
+  if (CLOSE_CONTROL_RE.test(text.trim())) return true;
+  if (QUANTITY_RE.test(name) || QUANTITY_RE.test(attrs)) return true;
+  if (MENU_DROPDOWN_RE.test(attrs)) return true; // class/id only -- see doc comment above.
+
+  return false;
+}
+
+/**
+ * Class/id tokens for common video-player implementations (video.js, Plyr,
+ * YouTube's own player chrome, and generic "video-player"/"media-player"
+ * naming). Matched against a bounded ancestor walk, not just the element
+ * itself -- a duration/remaining-time label usually isn't the `<video>`
+ * element's own descendant, it's a sibling control inside a shared player
+ * container.
+ */
+const VIDEO_PLAYER_RE = /\b(video-?player|media-?player|vjs-|plyr|ytp-)\b/i;
+const VIDEO_PLAYER_SCAN_DEPTH = 6;
+
+/**
+ * True if `el` sits inside a video player's UI chrome -- a duration label
+ * ("0:35") or a remaining-time readout ("Remaining Time - 0:00") shares the
+ * exact same `MM:SS` shape as a genuine countdown-to-deadline timer, and
+ * nothing about the text alone distinguishes "this clip is 35 seconds long"
+ * from "checkout closes in 35 seconds." A real trace caught this: every
+ * `false_urgency` hit on one product page (12 of them) was a video
+ * duration/progress label with zero rule corroboration, all pattern-matched
+ * purely because role=timer told the model "treat this MM:SS as urgency."
+ */
+function isVideoPlayerContext(el: Element): boolean {
+  let node: Element | null = el;
+  for (let depth = 0; node && depth < VIDEO_PLAYER_SCAN_DEPTH; depth += 1, node = node.parentElement) {
+    if (node.tagName.toLowerCase() === "video") return true;
+    if (typeof node.querySelector === "function" && node.querySelector("video")) return true;
+    const cls = typeof node.className === "string" ? node.className : "";
+    if (VIDEO_PLAYER_RE.test(`${cls} ${node.id ?? ""}`)) return true;
+  }
+  return false;
+}
 
 function normalizedText(el: Element): string {
   return (el.textContent ?? "").trim().toLowerCase();
@@ -69,10 +163,29 @@ function closest(el: Element, selector: string): Element | null {
   return typeof el.closest === "function" ? el.closest(selector) : null;
 }
 
-export function inferRole(el: Element, lang: string): Role {
+/**
+ * `candidateText`, when given, is used instead of recomputing text from
+ * `el.textContent` -- it should be extract.ts's already-computed
+ * `candidateText` for this element. This matters specifically for the
+ * leaf-block-coalescing case (extract.ts's `leafBlockText`): when a parent
+ * element's candidate text is built by joining several inline children,
+ * `leafBlockText` inserts an explicit space between them, but raw
+ * `el.textContent` reflects whatever whitespace actually exists in the DOM
+ * -- which can be none, if a site relies on CSS margin/gap for visual
+ * spacing between adjacent inline elements rather than an actual space
+ * character. A real trace caught this: "Rs. 1,500" and "-33%" in adjacent
+ * `<span>`s with no separating text node produced candidate text "Rs. 1,500
+ * -33%" (extract.ts's join) but `el.textContent` "Rs. 1,500-33%" (no
+ * space) -- the digit run right before "-33%" then meant the discount
+ * pattern never matched, and the exact same discount elsewhere on the page
+ * (as its own isolated node) got flagged while this one silently didn't.
+ * Falls back to recomputing from the element for callers (tests, or any
+ * future caller) that don't have extract.ts's candidate text on hand.
+ */
+export function inferRole(el: Element, lang: string, candidateText?: string): Role {
   const accessibleName =
     el.getAttribute("aria-label") ?? el.getAttribute("title") ?? "";
-  const text = normalizedText(el) || accessibleName.toLowerCase();
+  const text = (candidateText?.toLowerCase() ?? normalizedText(el)) || accessibleName.toLowerCase();
   const tag = el.tagName.toLowerCase();
   const attrs = classAndId(el);
 
@@ -113,10 +226,29 @@ export function inferRole(el: Element, lang: string): Role {
     }
     if (matchesAny(text, declineWords)) return "decline";
     if (matchesAny(text, ctaWords)) return "cta";
-    if (tag === "button" || el.getAttribute("role") === "button") {
-      // A button matching neither wordlist -- still worth flagging
-      // structurally as a generic accept-side control, since most
-      // unclassified buttons on e-commerce pages are.
+    // An explicit type="submit" *attribute* is unambiguous evidence of a
+    // primary form action regardless of wording -- checked before the
+    // generic-control exclusions below so a submit button can never be swept
+    // into "body" by an unlucky aria-label/class collision. Deliberately
+    // reads the attribute, not the `.type` IDL property: per the HTML spec a
+    // bare <button> with no type attribute at all still reports `.type ===
+    // "submit"` (the missing-value default), which would otherwise make
+    // this branch fire for every plain button and silently skip every
+    // exclusion below it.
+    if (tag === "button" && el.getAttribute("type")?.toLowerCase() === "submit") {
+      return "cta";
+    }
+    if (
+      (tag === "button" || el.getAttribute("role") === "button") &&
+      !isGenericUiControl(el, text, accessibleName, attrs)
+    ) {
+      // A button matching neither wordlist, not a submit control, and not
+      // recognisable as a carousel/pagination/filter/expand/close/quantity/
+      // menu control -- still worth flagging structurally as a generic
+      // accept-side control, since most remaining unclassified buttons on
+      // e-commerce pages are. Fix 4, Part A: this used to fire for *every*
+      // button regardless of kind; recognised generic UI controls now fall
+      // through to the generic-content checks below instead.
       return "cta";
     }
 
@@ -126,7 +258,10 @@ export function inferRole(el: Element, lang: string): Role {
     ) {
       return "fine_print";
     }
-    if (TIMER_CLASS_RE.test(attrs) || /\b\d{1,2}:\d{2}(:\d{2})?\b/.test(text)) {
+    if (
+      (TIMER_CLASS_RE.test(attrs) || /\b\d{1,2}:\d{2}(:\d{2})?\b/.test(text)) &&
+      !isVideoPlayerContext(el)
+    ) {
       return "timer";
     }
     if (STOCK_CLASS_RE.test(attrs)) return "stock";

@@ -66,6 +66,37 @@ function leafBlockText(el: Element): string | null {
   return joined;
 }
 
+/**
+ * Minimum length of the repeated half before collapseSelfDuplicate() acts.
+ * Guards against coincidental short repeats ("aa", "88", a two-char price
+ * fragment) that are real content, not a duplication artifact -- every
+ * observed real case ("Discover more", "Shop gaming") is well above this.
+ */
+const MIN_DUPLICATE_HALF_LENGTH = 4;
+
+/**
+ * Collapses "TT" (T immediately repeated, no separator) down to "T".
+ *
+ * Real trace data caught this: some sites (confirmed on Amazon's home page,
+ * ~6% of candidates on one real trace) render a label's text twice in the
+ * DOM back-to-back for a CSS hover/flip animation -- one copy visually
+ * swapped in via `transform`/`overflow` clipping, not `display`/
+ * `visibility`/`opacity`, so `isVisible()` has no way to tell the two apart
+ * and both flow into the extracted text with no separating whitespace
+ * ("Discover moreDiscover more", "Shop gamingShop gaming"). The underlying
+ * content is real -- this isn't a candidate to drop -- but sending the
+ * doubled string is wasted payload and an unnaturally-shaped input the
+ * model never saw in training. Collapsing to one copy fixes both.
+ */
+function collapseSelfDuplicate(text: string): string {
+  if (text.length % 2 !== 0) return text;
+  const half = text.length / 2;
+  if (half < MIN_DUPLICATE_HALF_LENGTH) return text;
+  const first = text.slice(0, half);
+  const second = text.slice(half);
+  return first === second ? first : text;
+}
+
 
 function isVisible(el: Element): boolean {
   if (!(el instanceof HTMLElement)) return true;
@@ -244,10 +275,11 @@ export async function extractCandidatesWithElements(
       //   <div class="pdp-discount"><span>-8%</span></div>
       //   <div class="price"><s>NPR 1,299</s> <span>NPR 1,199</span></div>
       // Without this they were silently skipped because directText === "".
-      const candidateText =
+      const candidateText = collapseSelfDuplicate(
         directText.length >= MIN_TEXT_LENGTH && directText.length <= MAX_TEXT_LENGTH
           ? directText
-          : (leafBlockText(el) ?? "");
+          : (leafBlockText(el) ?? ""),
+      );
 
       if (
         candidateText.length < MIN_TEXT_LENGTH ||
@@ -284,7 +316,12 @@ export async function extractCandidatesWithElements(
       if (seen.has(id)) continue;
       seen.add(id);
 
-      const role = inferRole(el, lang);
+      // Pass candidateText explicitly -- see role.ts's doc comment on the
+      // `candidateText` param. Without this, inferRole() re-derives text
+      // from el.textContent directly, which can disagree with the joined
+      // text actually sent to the model whenever leafBlockText() had to
+      // insert a separating space that the raw DOM didn't have.
+      const role = inferRole(el, lang, candidateText);
       const htmlEl = el instanceof HTMLElement ? el : null;
       const style = htmlEl ? getComputedStyle(htmlEl) : null;
 

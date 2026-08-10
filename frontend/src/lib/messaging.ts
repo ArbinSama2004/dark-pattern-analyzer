@@ -53,10 +53,20 @@ export interface ScrollToMessage {
   selector: string;
 }
 
+/** Sent popup -> content.ts to trigger a download of the full extraction ->
+ * classification trace (see content.ts's `exportTrace`). A popup button, not
+ * a console command: window.__dpExportTrace() only works when DevTools'
+ * Console context is pointed at the content script's isolated world, which
+ * is easy to get wrong -- this message-based trigger works regardless. */
+export interface ExportTraceMessage {
+  type: "dp/export-trace";
+}
+
 export type ExtensionMessage =
   | ClassifyCandidatesMessage
   | ClassifyProgressMessage
-  | ScrollToMessage;
+  | ScrollToMessage
+  | ExportTraceMessage;
 
 /** chrome.storage.session key holding the latest findings for a tab, so the
  * popup and side panel (which don't share a direct message channel with the

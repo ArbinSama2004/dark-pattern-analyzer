@@ -13,6 +13,8 @@ export function Popup() {
   const [host, setHost] = useState<string | null>(null);
   const [findings, setFindings] = useState<StoredFindings | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [tabId, setTabId] = useState<number | null>(null);
+  const [exportStatus, setExportStatus] = useState<"idle" | "sent" | "error">("idle");
 
   useEffect(() => {
     let cancelled = false;
@@ -41,6 +43,7 @@ export function Popup() {
         setEnabled(isEnabled);
         setHost(currentHost);
         setFindings(currentFindings);
+        setTabId(tab?.id ?? null);
         setLoaded(true);
       }
     }
@@ -66,6 +69,30 @@ export function Popup() {
   async function handleToggle(next: boolean) {
     setEnabled(next);
     await chrome.storage.session.set({ [SCAN_ENABLED_KEY]: next });
+  }
+
+  /**
+   * A button, not a console command. window.__dpExportTrace() (content.ts)
+   * only runs when DevTools' Console context dropdown happens to be pointed
+   * at the content script's isolated world -- easy to miss, and it silently
+   * looks like the feature doesn't exist ("is not a function") rather than
+   * "wrong context". chrome.tabs.sendMessage doesn't have that problem: it
+   * reaches the content script's listener regardless of which world any
+   * DevTools panel is looking at.
+   */
+  async function handleExportTrace() {
+    if (tabId === null) {
+      setExportStatus("error");
+      return;
+    }
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: "dp/export-trace" });
+      setExportStatus("sent");
+    } catch {
+      // No content script on this tab (e.g. a chrome:// page) or it hasn't
+      // finished loading yet.
+      setExportStatus("error");
+    }
   }
 
   const count = findings?.items.length ?? 0;
@@ -111,6 +138,26 @@ export function Popup() {
         Flags potentially manipulative patterns. Scanning is user-initiated, per
         page. Open the side panel for details.
       </p>
+
+      <div className="mt-3 border-t pt-3">
+        <button
+          type="button"
+          className="text-xs underline text-gray-500 hover:text-gray-700"
+          onClick={handleExportTrace}
+        >
+          Download debug trace (JSON)
+        </button>
+        {exportStatus === "sent" && (
+          <p className="text-xs text-gray-400 mt-1">
+            Check your downloads -- the file saves from the page tab, not this popup.
+          </p>
+        )}
+        {exportStatus === "error" && (
+          <p className="text-xs text-red-500 mt-1">
+            Couldn't reach this tab's content script. Reload the page and try again.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
