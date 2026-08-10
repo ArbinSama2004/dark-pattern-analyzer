@@ -115,8 +115,7 @@ class ChatClient:
             )
         if response.status_code != 200:
             raise LLMError(
-                f"the model provider returned HTTP {response.status_code}: "
-                f"{response.text[:200]}"
+                f"the model provider returned HTTP {response.status_code}: {response.text[:200]}"
             )
 
         try:

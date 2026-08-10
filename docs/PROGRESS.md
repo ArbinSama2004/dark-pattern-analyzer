@@ -81,15 +81,25 @@ Nothing raised an exception during any of this. The export succeeded, the model 
 and the smoke test printed plausible probabilities. **The parity test is the only reason
 this was caught before Stage 2, which retroactively justifies building it.**
 
-### 5. Artifact loss and re-run
+### 5. The artifact that was never actually lost
 
-The Colab session hit its GPU limit before the bundle was downloaded, so the trained
-weights are gone. Code and data are safe in GitHub. Stage 1 must be re-run once on a
-fresh Google account -- about 40 minutes, no code changes needed. See HANDOFF.md.
+The Colab session hit its GPU limit before the bundle appeared in any handoff zip, and
+this was recorded for a while as data loss requiring a 40-minute re-run on a fresh
+account. It was not. `model.onnx` (951,654,037 bytes, fp32) had been on local disk at
+`ml/artifacts/model_v1/` the whole time. It was missing from the zips because
+`git archive` omits gitignored files by design, and the bundle is gitignored for the
+obvious reason that it is ~950 MB.
 
-Mitigation applied: checkpoints now write to /content/dp_checkpoints instead of Google
-Drive, so a full Drive can no longer kill a run mid-training. Only the final bundle
-touches Drive.
+Parity (100.00% / 0.00000) and the smoke check (`scarcity=0.626`) confirm it is the
+same bundle every metric in docs/RESULTS.md was measured from. **No re-run was needed
+and none was done.**
+
+The lesson worth keeping: "absent from the artifact I was inspecting" is not the same
+claim as "does not exist", and the difference cost real time here.
+
+Mitigation applied anyway, since the original failure mode is real: checkpoints now
+write to /content/dp_checkpoints instead of Google Drive, so a full Drive can no longer
+kill a run mid-training. Only the final bundle touches Drive.
 
 ---
 
@@ -150,7 +160,7 @@ same words on a cancel button. A test asserts the two stay distinct.
 
 ### 6. Latency is not claimed
 
-The under-100 ms budget in HANDOFF.md was written while int8 was still assumed.
+The under-100 ms budget was written while int8 was still assumed.
 fp32 MuRIL on CPU will exceed it. The handler logs requests over budget rather
 than pretending; the number gets measured on real hardware and then the budget gets
 corrected. Mitigations already in place: cache hits, in-request dedup of repeated
@@ -167,10 +177,108 @@ tuned threshold vector; fifteen distinct rejection paths; stable sigmoid,
 per-class thresholds, multi-label ordering and benign handling; cache TTL, LRU and
 thread safety; request validation and tag/role normalisation.
 
-**Unverified until the bundle exists:** real inference, the smoke check reproducing
-0.626, actual latency, and the HTTP tests, which need `fastapi` and `httpx`.
+**Since resolved.** The bundle was located on local disk (see section 5), and all of
+the above is now verified: the smoke check reproduces `scarcity=0.626` at startup,
+inference runs against the real fp32 graph, and latency is measured — see
+docs/RESULTS.md section 5, where it turns out to be roughly 16x the original budget.
 
 Rationale in plain language: docs/BACKEND.md.
+
+---
+
+## Stage 3 -- Chrome extension
+
+### 1. What was built
+
+MV3 extension (WXT + React + TypeScript): DOM extraction with a debounced
+`MutationObserver`, ten structural rules evaluated in-page, batching and dedupe in the
+background service worker, an overlay of badges in a closed shadow root, and a side
+panel grouping findings by category with a per-finding detail view.
+
+### 2. Identity had to be split in two
+
+`candidate.id` was originally `sha1(lang + text)`. Three "Add to Cart" buttons on one
+listing page therefore collapsed into a single candidate, and only the first one ever
+got a badge. Split into `occurrenceId(lang, text, selector)` — unique per DOM node,
+used for addressing — and `modelCacheKey(lang, text, tag, role)` — what the dedupe
+cache is keyed by, so identical controls still share one forward pass. Conflating
+them costs either correctness or the entire benefit of caching.
+
+### 3. The overlay must fail closed, per item
+
+Two failures with the same shape: a resolver that guessed produced badges on the wrong
+element after an SPA re-render, and one bad cached item threw inside `render()` after
+the badge container had already been cleared, wiping every badge on the page and doing
+so again on each subsequent scroll. Both were fixed by refusing rather than guessing —
+`resolve.ts` returns `null` on an ambiguous or already-claimed match — and by wrapping
+each item's render in its own `try/catch`, so one bad finding costs one badge.
+
+### 4. Badge placement is a scoring problem, not a rule
+
+"Above the target, else below" cannot work on a dense product grid: in a price block
+every position collides with something. Placement now scores six candidate positions
+against the rectangles of rendered text (`Range.getClientRects()`) and takes the least
+obstructive, collapsing the badge to an icon when nothing is clean. Two lessons paid
+for here: badges must be **measured** rather than assumed to be a fixed size, and the
+search region must be sized by the *badge*, not the target — a 140px badge on a 48px
+discount covers text that no probe around the target ever samples.
+
+### 5. Findings belong to a document, not a tab
+
+On an SPA an in-page navigation replaces the DOM but does not reload the content
+script, so its accumulated state carried the previous route's findings onto the next
+page. Clearing on a navigation event was racy. Findings now carry the document URL
+they describe and **every reader validates it for itself**, which is correct whether or
+not any cleanup listener ran in time.
+
+---
+
+## Stage 4 -- Evaluation, and two additions beyond the original plan
+
+### 1. LLM explanations (`POST /v1/explain`)
+
+On-demand, one finding at a time, when a user expands it in the side panel. The
+fine-tuned classifier remains the source of truth for *what* was detected; the LLM is
+a presentation layer over *why it matters* and has no path back into a label, a score
+or the page score.
+
+Two defences that are not optional. Page text is **untrusted input** — it is fenced,
+and the system prompt names those blocks as data — and the wording discipline is
+enforced **in code**, not only in the prompt: a generation containing legal-claim
+language is rejected and the UI falls back to the static description. A prompt is a
+request, not a guarantee, and the project's entire framing depends on never making
+that claim.
+
+### 2. Trace archive (`POST /v1/traces`, MinIO)
+
+Every gap found during Stage 3 was found the same way — a rule that never fires on
+real phrasing, a role misinferred on a real layout — and each time, investigating meant
+re-finding the page and re-scanning it. The archive turns that into a query.
+
+Objects live in MinIO; a SQLite table indexes host, URL, time, counts and labels,
+because object storage can answer "give me this key" and "list this prefix" and
+nothing else. Archiving is a **button**, not a setting: a trace is real text from the
+page in front of the user, so consent is given per capture rather than once and then
+forgotten.
+
+### 3. Latency, finally measured
+
+`make bench`. A batch of 32 takes ~620 ms p50, against a 40 ms budget written under
+the int8 assumption that section 4 of docs/RESULTS.md documents abandoning. This is
+arithmetic, not a bug, and it explains why a 600-candidate page takes tens of seconds
+to resolve fully. Full analysis and the options that would actually move it:
+docs/RESULTS.md section 5.
+
+### 4. Gold set: tooling built, annotation outstanding
+
+`make gold-candidates` samples an annotation sheet from archived traces — stratified
+by predicted label and language, half drawn from candidates the model called benign so
+that false negatives are findable at all. `make gold-eval` scores annotations per
+class and per language, and reports the rule ablation.
+
+**The annotation itself is not done.** It is human work by design: labels produced by
+the model under evaluation would make the evaluation circular. Until it exists, every
+number in this project is measured on synthetic data it generated itself.
 
 ---
 
@@ -202,9 +310,13 @@ Rationale in plain language: docs/BACKEND.md.
 
 | Item | Priority | Stage |
 |---|---|---|
+| Real-site gold set not annotated -- the honest evaluation. Tooling exists (`make gold-candidates`, `make gold-eval`); the labelling is outstanding | high | 4 |
+| Inference is ~16x the latency budget (620 ms per batch of 32). A smaller base model is the only change likely to move it an order of magnitude | high | 4 |
 | Validation split has 0% multi-label rows while test has 3.2%, distorting tuned thresholds | high | 4 |
-| Real-site gold set not collected -- the honest evaluation | high | 4 |
+| `"958 sold"` classified as scarcity, though a completed sale count is a settled aggregate by docs/ANNOTATION.md's own test. Suspected systematic false positive; the gold set will confirm or refute it | medium | 4 |
 | MuRIL vocabulary pruning, 197k to about 30k, target roughly 200 MB | medium | 4 |
+| Findings carry `source` but not the *names* of the rules that fired, so `/v1/explain` prompts say "a rule matched" rather than which one | low | any |
+| `GET /v1/rules` deferred by design; trigger (rule updates without rebuilding the extension) has not fired | low | deferred |
 | transformers 5.x could not resolve eval_macro_f1_dark, so early stopping was silently disabled | low | note in report |
 | Remove the colliding hard-negative template, index 00, all three languages | low | any |
 | Append a v2.1 section to docs/DATASET_V2.md | low | any |

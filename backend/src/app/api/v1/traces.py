@@ -66,9 +66,7 @@ async def store_trace(request: Request, body: StoreTraceRequest) -> StoreTraceRe
     if len(payload) > settings.trace_max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=(
-                f"trace is {len(payload)} bytes, over the {settings.trace_max_bytes} limit"
-            ),
+            detail=(f"trace is {len(payload)} bytes, over the {settings.trace_max_bytes} limit"),
         )
 
     captured_at = datetime.now(UTC)
@@ -83,9 +81,7 @@ async def store_trace(request: Request, body: StoreTraceRequest) -> StoreTraceRe
         ) from exc
 
     # Derived once here rather than recomputed per query later.
-    labels = sorted(
-        {label for entry in body.entries for label in (entry.findingLabels or [])}
-    )
+    labels = sorted({label for entry in body.entries for label in (entry.findingLabels or [])})
     flagged = sum(1 for entry in body.entries if entry.findingLabels)
 
     existing = await run_in_threadpool(index.get, body.scan_id)

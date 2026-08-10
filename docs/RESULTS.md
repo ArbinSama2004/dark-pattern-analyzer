@@ -270,16 +270,61 @@ Stage 4 as a scoped optimisation with a measurable target, not a vague "optimise
 
 ## 5. Latency (Stage 2)
 
-| Stage | p50 | p95 | Budget |
-|---|---|---|---|
-| extraction (in-page) | | | 20 ms |
-| rules (in-page) | | | 10 ms |
-| network round trip | | | 25 ms |
-| inference, batch of 32 | | | 40 ms |
-| **total** | | | **100 ms** |
+Measured with `make bench` (`backend/scripts/bench_latency.py`), 50 timed runs after
+5 warmup runs, on the development machine (Apple Silicon, CPU only, fp32 bundle,
+`DP_ONNX_INTRA_OP_THREADS=0`). Batches mix short button labels with longer fine print
+across all three languages, because padding to the longest item in a batch is a real
+cost that a batch of identical short strings would hide.
 
-Not yet measured. Note that fp32 inference is slower than the int8 assumption this
-budget was written under; re-measure before treating 40 ms as achievable.
+| Case | p50 | p95 | Budget | Verdict |
+|---|---:|---:|---:|---|
+| inference, batch of 1 | 15.0 ms | 16.4 ms | — | |
+| inference, batch of 8 | 128.6 ms | 138.9 ms | — | |
+| **inference, batch of 32** | **618.1 ms** | **653.1 ms** | 40 ms | **16x over** |
+| inference, batch of 64 | 1414.8 ms | 1477.2 ms | — | |
+| cache hit, 32 keys | <0.1 ms | <0.1 ms | 15 ms | ok |
+
+Not measured here, deliberately: in-page extraction and rule evaluation run in the
+browser rather than this process, and a localhost network round trip is not a
+meaningful figure for anything. Filling those rows with numbers from the wrong machine
+would be worse than leaving them out.
+
+### The budget does not survive contact with fp32
+
+The 100 ms end-to-end budget was written assuming an int8 model.
+Section 4 documents why int8 was abandoned: it destroyed the model. The consequence
+is quantified here — **a batch of 32 takes ~620 ms, not 40 ms.**
+
+This is not a regression to fix by tuning. It is the arithmetic of running a 236M
+parameter fp32 transformer on CPU, and it is the direct cause of a symptom seen
+throughout Stage 3 development: a large product page yielding 600 candidates needs
+~19 batches, which is **12+ seconds of pure inference** before any queuing,
+serialisation or retry. Pages taking 40-80 seconds to fully resolve were never a bug
+in the extension.
+
+Scaling is worse than linear per item up to batch 32 and then roughly linear:
+19 ms/item at batch 1, 16 ms/item at batch 8, 19 ms/item at batch 32, 22 ms/item at
+batch 64. Batching buys almost nothing here, which is itself the finding — the cost is
+dominated by the per-token forward pass, not per-request overhead.
+
+### What would actually move this
+
+In rough order of expected benefit per unit of work:
+
+1. **A smaller base model.** `Multilingual-MiniLM-L12-H384` (118M) was measured in
+   section 1 at the same tokenizer fertility as XLM-R and half MuRIL's parameters.
+   This is the only change likely to be worth an order of magnitude.
+2. **Quantization that survives parity.** int8 dynamic failed (section 4).
+   Quantization-aware training or int8 static with a calibration set were not
+   attempted and are the honest next thing to try, not a claim.
+3. **GPU or a dedicated inference server.** Changes deployment rather than the model.
+4. **Sending fewer candidates.** The extension already caps at 600/page and dedupes
+   aggressively; more aggressive filtering trades recall for latency.
+
+The architecture already mitigates the user-visible effect: results stream to the
+overlay per batch rather than after the whole page (see `docs/BACKEND.md`), so badges
+appear progressively instead of the page freezing. That is mitigation, not a fix, and
+this table is the number to quote rather than the budget.
 
 ---
 

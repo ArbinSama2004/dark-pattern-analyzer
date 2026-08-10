@@ -3,8 +3,9 @@
 FastAPI + onnxruntime. Loads the Stage 1 artifact bundle once at startup and
 classifies batches of DOM snippets over HTTP.
 
-**Status: Stage 2 implemented.** Inference itself stays unverified until the
-bundle exists -- see [What is not verified yet](#what-is-not-verified-yet).
+**Status: delivered and verified** against the real fp32 bundle. The startup smoke
+check reproduces `scarcity=0.626` on every boot, and latency has been measured --
+see [Latency](#latency), where it turns out to miss its budget by roughly 16x.
 
 ---
 
@@ -38,14 +39,21 @@ If that line says failed, the graph is wrong. Stop and re-run `make parity`.
 
 ## Endpoints
 
-| Method | Path | Notes |
-|---|---|---|
-| POST | `/v1/classify` | Batch classification, max `DP_MAX_BATCH` snippets |
-| GET | `/healthz` | Liveness. Never touches the model |
-| GET | `/readyz` | Readiness. 503 until the bundle loads and the smoke check passes |
+| Method | Path | Notes | Default |
+|---|---|---|---|
+| POST | `/v1/classify` | Batch classification, max `DP_MAX_BATCH` snippets | on |
+| GET | `/healthz` | Liveness. Never touches the model | on |
+| GET | `/readyz` | Readiness. 503 until the bundle loads and the smoke check passes | on |
+| POST | `/v1/explain` | One finding explained in plain language, via Groq | `DP_LLM_ENABLED` |
+| POST | `/v1/traces` | Archive one page scan to MinIO | `DP_MINIO_ENABLED` |
+| GET | `/v1/traces` | Find archived scans by host and/or label | `DP_MINIO_ENABLED` |
 
-`GET /v1/rules` is late Stage 3. `POST /v1/feedback` is Stage 4. Neither is
-stubbed -- a 501 stub is maintenance with no user.
+The optional three fail independently: neither a Groq outage nor a stopped MinIO
+can stop the service classifying. When disabled they return 503 naming the setting
+to change, rather than a generic error.
+
+`GET /v1/rules` and `POST /v1/feedback` are still unbuilt and not stubbed -- a 501
+stub is maintenance with no user.
 
 ### POST /v1/classify
 
@@ -171,23 +179,36 @@ All variables are prefixed `DP_`. See `.env.example` for the annotated list.
 
 ---
 
-## What is not verified yet
+## Latency
+
+Measured, not estimated:
+
+| Case | p50 | p95 | Budget |
+|---|---:|---:|---:|
+| inference, batch of 32 | 618 ms | 653 ms | 40 ms |
+| cache hit, 32 keys | <0.1 ms | <0.1 ms | 15 ms |
+
+```bash
+make bench              # reproduces the table above
+```
+
+The budget assumed an int8 model. int8 destroyed this model (`docs/RESULTS.md` §4),
+so fp32 is what ships and ~620 ms per batch is what it costs. This is arithmetic,
+not a bug to tune away, and it is why a 600-candidate page takes tens of seconds to
+resolve fully. Analysis and the options that would genuinely change it:
+`docs/RESULTS.md` §5.
+
+## What still needs the bundle
 
 `model.onnx` is roughly 951 MB and gitignored, so it is absent from any fresh
-clone. Until it is in place, these are unproven: real inference, the startup
-smoke check reproducing `scarcity=0.626`, and actual latency.
+clone. Without it, real inference, the smoke check and `make bench` cannot run.
 
 The HTTP tests in `tests/test_api.py` substitute a fake engine, so they cover the
 request pipeline -- cache keys, dedup, threshold application, response shape --
-but not the model.
-
-When the bundle is in place:
+but not the model. That is deliberate: CI will never have the graph.
 
 ```bash
 make smoke-backend      # loads the real graph and reproduces 0.626
 ```
-
-The fp32 latency budget in `HANDOFF.md` was written assuming int8. It has to be
-re-measured, not assumed.
 
 Design rationale in plain language: `docs/BACKEND.md`.

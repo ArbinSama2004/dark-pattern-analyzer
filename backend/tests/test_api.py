@@ -86,9 +86,7 @@ def client(tmp_path: Path):
         cache_ttl=600,
     )
     app = create_app(settings)
-    bundle = load_bundle(
-        root, profile="precision", expected_version="1.0.0", require_onnx=False
-    )
+    bundle = load_bundle(root, profile="precision", expected_version="1.0.0", require_onnx=False)
     engine = FakeEngine(bundle)
 
     with TestClient(app) as test_client:
@@ -169,7 +167,9 @@ def test_no_legal_language_anywhere_in_the_response(client) -> None:
 
 
 def test_benign_snippet_has_no_findings(client) -> None:
-    response = client.post("/v1/classify", json={"snippets": [{"text": "Free returns within 30 days"}]})
+    response = client.post(
+        "/v1/classify", json={"snippets": [{"text": "Free returns within 30 days"}]}
+    )
     result = response.json()["results"][0]
     assert result["findings"] == []
     assert result["benign"] is True
@@ -184,9 +184,7 @@ def test_multi_label_snippet(client) -> None:
 
 
 def test_ref_is_echoed_back(client) -> None:
-    response = client.post(
-        "/v1/classify", json={"snippets": [{"text": "x", "ref": "node-42"}]}
-    )
+    response = client.post("/v1/classify", json={"snippets": [{"text": "x", "ref": "node-42"}]})
     assert response.json()["results"][0]["ref"] == "node-42"
 
 

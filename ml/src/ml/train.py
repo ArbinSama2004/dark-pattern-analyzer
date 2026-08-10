@@ -184,7 +184,7 @@ def train(
         max_length=cfg.max_length,
         text_column=cfg.text_column,
         quantized=False,  # set True by export_onnx.py
-        dataset=str(data_root).rstrip('/').split('/')[-1],
+        dataset=str(data_root).rstrip("/").split("/")[-1],
     ).write(out)
 
     (out / "train_metrics.json").write_text(

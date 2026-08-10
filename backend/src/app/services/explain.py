@@ -135,8 +135,7 @@ def build_user_prompt(request: ExplainRequest) -> str:
         )
     elif has_rule:
         evidence = (
-            "A structural rule matched how this element is built, independently "
-            "of its wording."
+            "A structural rule matched how this element is built, independently of its wording."
         )
     else:
         evidence = (
@@ -180,8 +179,7 @@ def build_user_prompt(request: ExplainRequest) -> str:
 
     lines.append("")
     lines.append(
-        "Explain to the reader why this finding matters, following every rule "
-        "in your instructions."
+        "Explain to the reader why this finding matters, following every rule in your instructions."
     )
     return "\n".join(lines)
 
@@ -194,9 +192,7 @@ def validate_label(label: str) -> None:
     generator; neither should be served.
     """
     if label not in DARK_LABELS:
-        raise ValueError(
-            f"unknown label {label!r}; expected one of {sorted(DARK_LABELS)}"
-        )
+        raise ValueError(f"unknown label {label!r}; expected one of {sorted(DARK_LABELS)}")
 
 
 async def generate_explanation(client: ChatClient, request: ExplainRequest) -> str:

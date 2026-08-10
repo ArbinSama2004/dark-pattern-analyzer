@@ -44,15 +44,27 @@ false urgency. Sigmoid outputs with per-class thresholds, never softmax.
 ## Architecture at a glance
 
 ```
-  Browser (MV3 extension)                Backend (FastAPI)
-  ┌─────────────────────────┐          ┌───────────────────────┐
-  │ content script         │          │ POST /v1/classify    │
-  │  • DOM extraction      │   HTTP   │  • LRU cache         │
-  │  • MutationObserver    │ ─────►  │  • ONNX int8 model   │
-  │  • structural rules    │          │  • per-class thresh. │
-  │ side panel + overlay   │ ◄─────  │  • explanations       │
-  └─────────────────────────┘          └───────────────────────┘
+  Browser (MV3 extension)                 Backend (FastAPI)
+  ┌──────────────────────────┐          ┌──────────────────────────┐
+  │ content script           │          │ POST /v1/classify        │
+  │  • DOM extraction        │   HTTP   │  • LRU cache             │
+  │  • MutationObserver      │ ───────► │  • ONNX fp32 MuRIL       │
+  │  • 10 structural rules   │ ◄─────── │  • per-class thresholds  │
+  │                          │          │                          │
+  │ overlay badges           │          │ POST /v1/explain         │
+  │ side panel               │ ───────► │  • plain-language why    │
+  │  • findings by category  │          │  • via Groq, on demand   │
+  │  • click to explain      │          │                          │
+  │  • save scan to archive  │ ───────► │ POST /v1/traces          │
+  └──────────────────────────┘          │  • MinIO + SQLite index  │
+                                        └──────────────────────────┘
 ```
+
+**fp32, not int8.** int8 quantization was attempted and it destroyed the model —
+all seven manipulative classes collapsed to zero positive predictions while the
+smoke test kept printing plausible numbers. See
+[`docs/RESULTS.md`](docs/RESULTS.md) §4. The cost of that decision is latency: a
+batch of 32 takes ~620 ms, not the 40 ms originally budgeted (§5).
 
 **Hybrid, deliberately.** Language models read wording; they cannot see that a
 timer resets on reload, that a checkbox ships pre-checked, or that the decline
@@ -69,12 +81,16 @@ Full design: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 | Stage | Scope | Status |
 |---|---|---|
 | **1** | Repo structure, dataset, Colab fine-tuning, ONNX artifacts | **delivered** |
-| **2** | FastAPI inference service | **code complete, unverified against real model** |
-| **3** | Chrome extension: extraction, rules, UI | **code complete, unverified end-to-end in browser** |
-| **4** | Real-site gold set, evaluation, write-up | not started |
+| **2** | FastAPI inference service | **delivered**, verified against the real bundle |
+| **3** | Chrome extension: extraction, rules, overlay, side panel | **delivered**, verified on live Amazon and Daraz pages |
+| **4** | Real-site gold set, evaluation, write-up | **partly done** — see below |
 
-See `HANDOFF_VERIFIED.md` at repo root for the code-verified status and the
-exact next steps -- this table is a summary, that file is the source of truth.
+**Stage 4, honestly.** Latency is measured, the gold-set and rule-ablation tooling is
+built, and two things beyond the original plan shipped (LLM explanations, the trace
+archive). **The gold set itself is not annotated**, which means every accuracy number
+in this repository is still measured on synthetic data the project generated itself.
+That is the single largest outstanding item, and it is human annotation work rather
+than code — [`docs/ANNOTATION.md`](docs/ANNOTATION.md) has the procedure.
 
 Detail, deliverables and exit criteria per stage: [`docs/STAGES.md`](docs/STAGES.md)
 
@@ -84,20 +100,29 @@ Detail, deliverables and exit criteria per stage: [`docs/STAGES.md`](docs/STAGES
 
 ```
 dark-pattern-analyzer/
-├── docs/                 architecture, stages, setup, results
+├── Makefile              every command; `make help` lists them
+├── docker-compose.yml    MinIO, for the trace archive
+├── docs/                 architecture, results, progress, annotation rules
 ├── data/
-│   ├── synthetic/        27,000-row trilingual dataset
+│   ├── synthetic_v2_1/   28,450-row trilingual dataset (current)
 │   ├── generator/        the scripts that produced it (reproducible)
-│   └── gold/             hand-annotated real snippets (Stage 4)
+│   └── gold/             hand-annotated real snippets (Stage 4, outstanding)
 ├── ml/                   training, evaluation, ONNX export  ← Stage 1
 │   ├── notebooks/        Colab fine-tuning notebook
 │   ├── src/ml/
 │   └── artifacts/        model.onnx, tokenizer, thresholds, metrics
 ├── backend/              FastAPI service                     ← Stage 2
 │   ├── src/app/
+│   │   ├── api/v1/       classify, explain, traces, health
+│   │   ├── core/         taxonomy, model input, bundle loading, hashing
+│   │   └── services/     inference, cache, llm, object_store, trace_index
+│   ├── scripts/          smoke_check, bench_latency, trace_report, gold_*
 │   └── tests/
 └── frontend/             WXT + React extension               ← Stage 3
     └── src/
+        ├── entrypoints/  content, background, popup, sidepanel
+        ├── lib/          extract, rules, api clients, resolve, merge
+        └── ui/           shadow-root overlay
 ```
 
 `ml/` and `backend/` have **separate dependency sets**. Training needs PyTorch
@@ -108,19 +133,65 @@ from `ml/` — the interface between them is the artifact bundle.
 
 ## Quickstart
 
-```bash
-git clone <your-repo-url> dark-pattern-analyzer
-cd dark-pattern-analyzer
+`make help` lists every target. There are two things you might want to do.
 
-make install-ml      # training environment
-make data-check      # validate the dataset and its leakage guards
-make fertility       # compare tokenizers -> decides the base model
+### A. Run the extension (needs the trained bundle)
+
+The bundle (`ml/artifacts/model_v1/model.onnx`, ~950 MB) is gitignored, so a fresh
+clone does not have it. Either train it (path B) or copy it in.
+
+```bash
+make install-backend      # onnxruntime + fastapi, ~120 MB
+make install-frontend     # extension dependencies
+make smoke-backend        # verify the bundle: must print scarcity=0.626
 ```
 
-Then open `ml/notebooks/01_finetune_colab.ipynb` in Google Colab and run it end
-to end. Full walkthrough: [`docs/SETUP.md`](docs/SETUP.md)
+Then, in **two terminals** — both are long-running:
 
-`make help` lists every target.
+```bash
+make dev                  # backend API on :8000
+```
+
+```bash
+make ext                  # extension dev build, rebuilds on change
+```
+
+Load the extension at `chrome://extensions` → Developer mode → **Load unpacked** →
+`frontend/.output/chrome-mv3`.
+
+> **Open a fresh tab afterwards.** Reloading an extension does not replace a content
+> script already injected into an open tab, and the resulting zombie script produces
+> confusing "Extension context invalidated" errors.
+
+Optional extras, both off by default:
+
+```bash
+make minio                # trace archive; then set DP_MINIO_ENABLED=true
+```
+
+For LLM explanations, put a [Groq](https://console.groq.com/keys) key in
+`backend/.env` as `DP_LLM_API_KEY` and set `DP_LLM_ENABLED=true`. Copy
+`backend/.env.example` to `backend/.env` first — every variable is annotated there.
+
+### B. Train the model from scratch
+
+```bash
+make install-ml           # torch + transformers, ~2.5 GB
+make data-check           # validate the dataset and its leakage guards
+make fertility            # compare tokenizers -> decides the base model
+```
+
+Then open `ml/notebooks/01_finetune_colab.ipynb` in Google Colab and run it end to
+end (~40 minutes on a T4). Full walkthrough: [`docs/SETUP.md`](docs/SETUP.md).
+
+### Checking the work
+
+```bash
+make test                 # backend + extension suites
+make lint                 # ruff + tsc across all three
+make parity               # PyTorch vs ONNX agreement (ml/'s real gate)
+make bench                # measure inference latency
+```
 
 ---
 
@@ -183,12 +254,29 @@ stronger work than presenting a suspiciously clean 0.99.
 ## Ethics
 
 - All output says **"potentially manipulative pattern"** — never "illegal",
-  "violation" or "fraud".
+  "violation" or "fraud". This is enforced in code, not just in prompts: a
+  generated explanation containing legal-claim language is rejected rather than
+  shown (`backend/src/app/services/explain.py`).
 - Thresholds default to a **precision-favouring** profile. Falsely accusing an
   honest site is worse than missing a pattern.
-- Text is hashed for caching; page URLs are stored hashed. No page content leaves
-  the machine beyond the snippets sent for classification.
-- Scanning is user-initiated.
+- Scanning is user-initiated, and can be turned off independently of the overlay.
+
+### Where page content actually goes
+
+Being precise about this matters more than sounding reassuring, so:
+
+| Destination | What is sent | When | Default |
+|---|---|---|---|
+| Your own backend (`localhost`) | extracted text snippets, with tag and role | on every scan | on |
+| **Groq** (third party) | one flagged snippet, plus ~10 neighbouring snippets for context | only when you click "Explain this finding" | **off** |
+| **MinIO** (your own storage) | the full extraction trace for one page | only when you click "Save this scan to the archive" | **off** |
+
+The two that leave your machine — or leave the browser — are both opt-in and both
+require an explicit click per use rather than a setting flipped once. Page text
+sent to Groq is treated as untrusted input: it is fenced, and the system prompt
+names those blocks as data, so a page cannot inject instructions into the
+explanation. That is a mitigation, not a solved problem.
+
 - Regulatory context (India CCPA 2023 guidelines, EU DSA) motivates the work; it
   is not the basis of any verdict the tool renders.
 
@@ -199,10 +287,18 @@ stronger work than presenting a suspiciously clean 0.99.
 | Document | Contents |
 |---|---|
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Full system design, API contract, data model, budgets |
+| [`docs/RESULTS.md`](docs/RESULTS.md) | **Every measured number**, including the int8 failure and the latency finding |
+| [`docs/PROGRESS.md`](docs/PROGRESS.md) | What was done and why, stage by stage, including what went wrong |
 | [`docs/STAGES.md`](docs/STAGES.md) | The four stages: deliverables and exit criteria |
+| [`docs/BACKEND.md`](docs/BACKEND.md) | Serving design, the five invariants, `/v1/explain` and `/v1/traces` |
+| [`docs/ANNOTATION.md`](docs/ANNOTATION.md) | Labelling rules, and how to build the gold set |
+| [`docs/model_card.md`](docs/model_card.md) | Model card: what it is, what it scores, what it cannot do |
 | [`docs/PHASES.md`](docs/PHASES.md) | Fine-grained engineering breakdown |
 | [`docs/SETUP.md`](docs/SETUP.md) | Colab → VS Code, step by step |
+| [`docs/DATASET_V2.md`](docs/DATASET_V2.md) | Why the dataset was rebuilt, twice |
 | [`ml/README.md`](ml/README.md) | Training decisions explained |
+| [`backend/README.md`](backend/README.md) | Running the service, configuration |
+| [`frontend/README.md`](frontend/README.md) | Extension layout and its two hard constraints |
 
 ---
 

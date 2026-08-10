@@ -113,9 +113,7 @@ class TestPromptConstruction:
     def test_score_is_omitted_for_rule_only_findings(self):
         # merge.py assigns a flat score of 1 to rule-only findings. Printing
         # that next to a threshold would imply a comparison that never ran.
-        prompt = build_user_prompt(
-            make_request(source=["rule"], score=1.0, threshold=0.0)
-        )
+        prompt = build_user_prompt(make_request(source=["rule"], score=1.0, threshold=0.0))
 
         assert "Classifier score" not in prompt
 
@@ -182,9 +180,7 @@ class TestWordingPolicy:
 
     @pytest.mark.anyio
     async def test_generation_is_rejected_when_it_makes_a_legal_claim(self):
-        client = make_client(
-            lambda request: completion("This countdown is illegal under EU law.")
-        )
+        client = make_client(lambda request: completion("This countdown is illegal under EU law."))
 
         with pytest.raises(LLMError, match="legal claim"):
             await generate_explanation(client, make_request())

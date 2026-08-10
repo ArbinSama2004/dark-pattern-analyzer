@@ -11,16 +11,26 @@ A FastAPI service that loads the Stage 1 artifact bundle once at startup and
 classifies batches of DOM snippets over HTTP. It is the only consumer of the
 bundle, and the bundle is the only thing it shares with `ml/`.
 
-Three endpoints, and no more:
+Endpoints:
 
-| Endpoint | Purpose |
-|---|---|
-| `POST /v1/classify` | Batch multi-label classification |
-| `GET /healthz` | Liveness. Does not touch the model |
-| `GET /readyz` | Readiness. 503 until the bundle loads and the smoke check passes |
+| Endpoint | Purpose | Default |
+|---|---|---|
+| `POST /v1/classify` | Batch multi-label classification | on |
+| `GET /healthz` | Liveness. Does not touch the model | on |
+| `GET /readyz` | Readiness. 503 until the bundle loads and the smoke check passes | on |
+| `POST /v1/explain` | Plain-language explanation of one finding, via Groq | **off** |
+| `POST /v1/traces` | Archive one page scan to MinIO | **off** |
+| `GET /v1/traces` | Find archived scans by host and/or label | **off** |
 
-`GET /v1/rules` is late Stage 3 and `POST /v1/feedback` is Stage 4. Neither is
-stubbed here. A stub returning 501 is a maintenance liability with no user.
+The last three arrived after Stage 2 and are documented in their own sections
+below. Each is independently disable-able and none of them can affect classifier
+readiness: a Groq outage or a stopped MinIO is a reason for that endpoint to fail,
+not for the service to stop classifying.
+
+`GET /v1/rules` and `POST /v1/feedback` remain unbuilt. Neither is stubbed. A stub
+returning 501 is a maintenance liability with no user, and `GET /v1/rules` has a
+documented trigger -- wanting to update rules without rebuilding the extension --
+that has not fired.
 
 ---
 
@@ -153,7 +163,7 @@ produces a threshold from a literal.
 
 ## Latency
 
-The budget in `HANDOFF.md` totals under 100 ms, with 30-60 ms for a batch-32
+The original budget totals under 100 ms, with 30-60 ms for a batch-32
 inference. That budget was written while int8 was still assumed. **fp32 MuRIL on CPU
 will exceed it**, and the handler logs whenever a request does rather than pretending
 otherwise.

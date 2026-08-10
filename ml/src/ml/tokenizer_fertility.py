@@ -169,7 +169,9 @@ def recommend(res: pd.DataFrame) -> str:
     p95 = int(res["p95_tokens"].max())
     lines += ["", f"Max p95 token length across all models/languages: {p95}"]
     if p95 > 64:
-        lines.append(f"    Consider raising max_length from 64 to {min(128, ((p95 // 16) + 1) * 16)}.")
+        lines.append(
+            f"    Consider raising max_length from 64 to {min(128, ((p95 // 16) + 1) * 16)}."
+        )
     else:
         lines.append("    max_length=64 is sufficient.")
 

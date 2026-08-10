@@ -80,11 +80,7 @@ async def explain(request: Request, body: ExplainRequest) -> ExplainResponse:
         # Retryable failures (provider down, timeout, rate limited) are 503 --
         # the request was fine and may succeed later. Everything else is 502:
         # the upstream answered, but unusably.
-        code = (
-            status.HTTP_503_SERVICE_UNAVAILABLE
-            if exc.retryable
-            else status.HTTP_502_BAD_GATEWAY
-        )
+        code = status.HTTP_503_SERVICE_UNAVAILABLE if exc.retryable else status.HTTP_502_BAD_GATEWAY
         log.warning("explain failed (label=%s, retryable=%s): %s", body.label, exc.retryable, exc)
         raise HTTPException(status_code=code, detail=str(exc)) from exc
 

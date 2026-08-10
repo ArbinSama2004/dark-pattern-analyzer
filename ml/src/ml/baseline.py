@@ -124,9 +124,7 @@ def main() -> int:
     if args.both_splits:
         leaky = run_split(args.data, SPLIT_LEAKY, cfg)
         results[SPLIT_LEAKY] = {k: v for k, v in leaky.items() if k != "pipeline"}
-        gap = (
-            leaky["summary"]["macro_f1_dark"] - primary["summary"]["macro_f1_dark"]
-        )
+        gap = leaky["summary"]["macro_f1_dark"] - primary["summary"]["macro_f1_dark"]
         results["leakage_gap_macro_f1_dark"] = gap
         print(f"\n{'=' * 68}")
         print(f"LEAKAGE GAP: random split scores {gap:+.4f} macro-F1 above template-disjoint.")

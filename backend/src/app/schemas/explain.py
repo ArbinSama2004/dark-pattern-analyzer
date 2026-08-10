@@ -85,9 +85,9 @@ class ExplainRequest(BaseModel):
     rule_hits: list[Annotated[str, Field(max_length=64)]] = Field(default_factory=list)
 
     #: Nearby candidates from the same page extraction.
-    context: Annotated[
-        list[ContextSnippet], Field(max_length=MAX_CONTEXT_SNIPPETS)
-    ] = Field(default_factory=list)
+    context: Annotated[list[ContextSnippet], Field(max_length=MAX_CONTEXT_SNIPPETS)] = Field(
+        default_factory=list
+    )
 
     #: Bypass the explanation cache for this request.
     use_cache: bool = True

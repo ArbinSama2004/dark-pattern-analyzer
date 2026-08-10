@@ -123,9 +123,7 @@ def export_fp32(artifacts: Path, cfg: TrainConfig) -> Path:
     return dest
 
 
-def quantize_int8(
-    fp32_path: Path, artifacts: Path, quantize_embeddings: bool = False
-) -> Path:
+def quantize_int8(fp32_path: Path, artifacts: Path, quantize_embeddings: bool = False) -> Path:
     """Dynamic int8 quantization of the linear layers.
 
     ``quantize_embeddings`` additionally quantizes the embedding table, which
@@ -310,7 +308,9 @@ def main() -> int:
     cfg = TrainConfig()
     mp = artifacts / "manifest.json"
     if mp.exists():
-        cfg.max_length = json.loads(mp.read_text(encoding="utf-8")).get("max_length", cfg.max_length)
+        cfg.max_length = json.loads(mp.read_text(encoding="utf-8")).get(
+            "max_length", cfg.max_length
+        )
 
     fp32 = export_fp32(artifacts, cfg)
 
@@ -321,9 +321,7 @@ def main() -> int:
         final = artifacts / "model.onnx"
         print("\nShipping fp32 (int8 is opt-in via --quantize; it failed parity here).")
     else:
-        final = quantize_int8(
-            fp32, artifacts, quantize_embeddings=args.quantize_embeddings
-        )
+        final = quantize_int8(fp32, artifacts, quantize_embeddings=args.quantize_embeddings)
 
     verify_loads(final, artifacts, cfg)
 

@@ -102,7 +102,9 @@ def test_multi_label_is_supported() -> None:
 
 def test_findings_are_sorted_by_descending_score() -> None:
     probs = sigmoid(_row(scarcity=0.70, false_urgency=0.95, sneaking=0.80))
-    labels = [f["label"] for f in decide(probs, labels=EXPECTED_LABELS, thresholds=TUNED)[0]["findings"]]
+    labels = [
+        f["label"] for f in decide(probs, labels=EXPECTED_LABELS, thresholds=TUNED)[0]["findings"]
+    ]
     assert labels == ["false_urgency", "sneaking", "scarcity"]
 
 

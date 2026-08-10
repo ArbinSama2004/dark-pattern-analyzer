@@ -100,3 +100,66 @@ If a second annotator is available, measure Cohen's kappa on the gold set. The
 categories where two reasonable people could disagree - chiefly social_proof versus
 benign aggregates - are exactly where kappa will be lowest, and reporting that is more
 valuable than hiding it.
+
+---
+
+## Building the gold set
+
+### 1. Capture real pages
+
+Browse the sites you want covered with the extension running, and press **"Save this
+scan to the archive"** on each. Traces land in MinIO. The extension's popup
+"Download debug trace (JSON)" button produces the same content as a local file if you
+would rather not run MinIO.
+
+Aim for spread rather than volume: several hosts, both a listing page and a product
+page per host, and pages that genuinely contain Devanagari text if the per-language
+table is to mean anything.
+
+### 2. Generate the annotation sheet
+
+```bash
+make gold-candidates TRACES='path/to/traces/*.json'
+```
+
+Writes `data/gold/candidates.csv`, sampling ~400 rows stratified by predicted label
+and language, **half from candidates the model flagged and half from candidates it
+called benign**. That split is deliberate: a sheet of only flagged rows can measure
+precision but is structurally incapable of finding a false negative.
+
+### 3. Annotate
+
+Fill the `gold_labels` column. Space-separated labels for a finding
+(`scarcity false_urgency`), or the literal word `benign` for none. Use `notes` for
+anything you were unsure about — those rows are the interesting ones later.
+
+**Annotate before looking at `model_labels`.** It is deliberately the second-to-last
+column for that reason. Reading it first turns the exercise into measuring your
+agreement with the model instead of measuring the model, and the resulting number is
+worthless while looking respectable.
+
+Save as `data/gold/gold.csv` when done.
+
+### 4. Score
+
+```bash
+make gold-eval
+```
+
+Prints per-class precision/recall/F1, macro-F1 over the seven dark classes, and a
+per-language breakdown — **twice**: model alone, and model plus the rule layer that
+actually ships. The difference between them is the rule ablation that
+`docs/STAGES.md` asks for.
+
+The model is re-run over the gold texts rather than reusing the `model_labels`
+recorded at capture time, because those came from whatever bundle and thresholds were
+live when the page was scanned. Scoring against them would quietly measure a past
+configuration.
+
+### A disagreement to expect
+
+`"958 sold"` was flagged **scarcity** by the model on a real Daraz capture. By the
+test at the top of this document a completed sale count is a *settled, verifiable
+aggregate* — benign, or at most social_proof. If that judgement holds across the gold
+set, it is a systematic false positive worth reporting per class rather than
+smoothing over.

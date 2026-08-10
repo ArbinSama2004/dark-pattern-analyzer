@@ -170,8 +170,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             )
         if settings.database_url:
             log.warning(
-                "DP_DATABASE_URL is set but persistence and /v1/feedback are Stage 4. "
-                "Ignoring it."
+                "DP_DATABASE_URL is set but persistence and /v1/feedback are Stage 4. Ignoring it."
             )
 
     except Exception as exc:  # noqa: BLE001 - recorded and surfaced via /readyz

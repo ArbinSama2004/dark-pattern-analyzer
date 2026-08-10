@@ -221,9 +221,7 @@ def pos_weights(df: pd.DataFrame) -> np.ndarray:
 def describe(parts: dict[str, pd.DataFrame]) -> str:
     out: list[str] = []
     for name, df in parts.items():
-        out.append(
-            f"\n=== {name}: {len(df):,} rows, {df['template_id'].nunique()} templates"
-        )
+        out.append(f"\n=== {name}: {len(df):,} rows, {df['template_id'].nunique()} templates")
         counts = df["lang"].value_counts().sort_index()
         out.append("  per language: " + ", ".join(f"{k}={v}" for k, v in counts.items()))
         sup = class_support(df)

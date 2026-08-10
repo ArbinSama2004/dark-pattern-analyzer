@@ -107,9 +107,7 @@ class InferenceEngine:
         self._tokenizer.enable_truncation(max_length=bundle.max_length)
         pad_id = self._tokenizer.token_to_id("[PAD]")
         if pad_id is None:
-            raise InferenceError(
-                f"{bundle.tokenizer_path} has no [PAD] token; cannot batch safely"
-            )
+            raise InferenceError(f"{bundle.tokenizer_path} has no [PAD] token; cannot batch safely")
         # Pad to the longest row in each batch, not to max_length. The graph has
         # dynamic sequence axes, and short UI microcopy means most batches are far
         # under 64 tokens -- padding to 64 every time wastes most of the compute.
@@ -156,8 +154,7 @@ class InferenceEngine:
             logits = np.asarray(logits)
             if logits.ndim != 2 or logits.shape[1] != len(self.labels):
                 raise InferenceError(
-                    f"unexpected logits shape {logits.shape}; expected "
-                    f"(batch, {len(self.labels)})"
+                    f"unexpected logits shape {logits.shape}; expected (batch, {len(self.labels)})"
                 )
             chunks.append(sigmoid(logits))
 

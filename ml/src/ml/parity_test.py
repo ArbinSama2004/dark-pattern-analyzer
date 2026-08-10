@@ -42,9 +42,7 @@ def onnx_logits(artifacts: Path, texts: list[str], cfg: TrainConfig, batch: int 
     import onnxruntime as ort
     from transformers import AutoTokenizer
 
-    sess = ort.InferenceSession(
-        str(artifacts / "model.onnx"), providers=["CPUExecutionProvider"]
-    )
+    sess = ort.InferenceSession(str(artifacts / "model.onnx"), providers=["CPUExecutionProvider"])
     expected = {i.name for i in sess.get_inputs()}
     tok = AutoTokenizer.from_pretrained(str(artifacts / "tokenizer"))
 
@@ -73,7 +71,9 @@ def run(artifacts: Path, data_root: str, n: int, profile: str) -> bool:
     cfg = TrainConfig()
     mp = artifacts / "manifest.json"
     if mp.exists():
-        cfg.max_length = json.loads(mp.read_text(encoding="utf-8")).get("max_length", cfg.max_length)
+        cfg.max_length = json.loads(mp.read_text(encoding="utf-8")).get(
+            "max_length", cfg.max_length
+        )
 
     val = load_split(data_root, SPLIT_PRIMARY, "val")
     sample = val.sample(n=min(n, len(val)), random_state=13)

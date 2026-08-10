@@ -98,9 +98,7 @@ class ObjectStore:
             import boto3
             from botocore.config import Config
         except ImportError as exc:  # pragma: no cover - dependency is declared
-            raise ObjectStoreError(
-                "boto3 is not installed; trace storage cannot start"
-            ) from exc
+            raise ObjectStoreError("boto3 is not installed; trace storage cannot start") from exc
 
         self._client = boto3.client(
             "s3",

@@ -162,9 +162,7 @@ class TraceIndex:
 
     def get(self, scan_id: str) -> TraceRecord | None:
         with self._connect() as conn:
-            row = conn.execute(
-                "SELECT * FROM traces WHERE scan_id = ?", (scan_id,)
-            ).fetchone()
+            row = conn.execute("SELECT * FROM traces WHERE scan_id = ?", (scan_id,)).fetchone()
         return _row_to_record(row) if row else None
 
     def count(self) -> int:

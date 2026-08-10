@@ -3,8 +3,14 @@ SHELL := /bin/bash
 
 # ---------------------------------------------------------------------------
 # Dark Pattern Analyzer
-# Stage 1: ml/ targets are live. Stage 2/3 targets are declared but not yet
-# implemented - they fail with a clear message rather than a confusing error.
+#
+# All four stages are implemented. Targets are grouped by what you are trying
+# to do, not by stage number:
+#
+#   running the thing   -> stack, dev, minio, ext, build-ext
+#   training the model  -> model (and its individual steps)
+#   checking the work   -> test, lint, smoke-backend, bench
+#   evaluating honestly -> gold-candidates, gold-eval, report
 # ---------------------------------------------------------------------------
 
 ARTIFACTS ?= ml/artifacts/model_v1
@@ -20,21 +26,56 @@ help: ## Show available targets
 # --- environment -----------------------------------------------------------
 
 .PHONY: install
-install: install-ml ## Install everything currently implemented
+install: install-ml install-backend install-frontend ## Install every environment
 
 .PHONY: install-ml
-install-ml: ## Install the training environment (torch, transformers)
+install-ml: ## Install the training environment (torch, transformers, ~2.5 GB)
 	cd ml && uv sync
 
 .PHONY: install-backend
-install-backend: ## [Stage 2] Install the backend environment
-	@test -f backend/pyproject.toml || { echo "Stage 2 not delivered yet."; exit 1; }
-	cd backend && uv sync
+install-backend: ## Install the serving environment (onnxruntime, ~120 MB)
+	cd backend && uv sync --extra dev
 
 .PHONY: install-frontend
-install-frontend: ## [Stage 3] Install the extension dependencies
-	@test -f frontend/package.json || { echo "Stage 3 not delivered yet."; exit 1; }
-	cd frontend && pnpm install
+install-frontend: ## Install the extension dependencies
+	cd frontend && npm install
+
+# --- running ---------------------------------------------------------------
+
+.PHONY: stack
+stack: ## Print how to run the full stack (three terminals; they are long-lived)
+	@echo "The full stack is three long-running processes, so run each in its own"
+	@echo "terminal rather than backgrounding them from one make target:"
+	@echo ""
+	@echo "  1. make minio     # only if you want the trace archive"
+	@echo "  2. make dev       # backend API on :8000"
+	@echo "  3. make ext       # extension dev build, then load frontend/.output/chrome-mv3"
+	@echo ""
+	@echo "Load unpacked at chrome://extensions, and open a FRESH tab afterwards --"
+	@echo "reloading the extension does not replace a content script already"
+	@echo "injected into an open tab."
+
+.PHONY: dev
+dev: ## Run the backend API with reload on :8000
+	cd backend && uv run uvicorn app.main:app --reload --port 8000
+
+.PHONY: minio
+minio: ## Start MinIO for the trace archive (console at :9001)
+	docker compose up -d minio
+	@echo "MinIO S3 API on :9000, console on http://localhost:9001 (minioadmin/minioadmin)"
+	@echo "Set DP_MINIO_ENABLED=true in backend/.env and restart the backend."
+
+.PHONY: minio-stop
+minio-stop: ## Stop MinIO (keeps stored traces in the docker volume)
+	docker compose down
+
+.PHONY: ext
+ext: ## Run the extension in dev mode (rebuilds on change)
+	cd frontend && npm run dev
+
+.PHONY: build-ext
+build-ext: ## Production build of the extension into frontend/.output/
+	cd frontend && npm run build
 
 # --- data ------------------------------------------------------------------
 
@@ -79,44 +120,60 @@ parity: ## Assert PyTorch and ONNX agree (catches quantization damage)
 .PHONY: model
 model: baseline train thresholds evaluate export parity ## Full Stage 1 model pipeline
 
-# --- backend (Stage 2) -----------------------------------------------------
+# --- evaluation (Stage 4) --------------------------------------------------
 
-.PHONY: dev
-dev: ## [Stage 2] Run the API with reload
-	@test -f backend/pyproject.toml || { echo "Stage 2 not delivered yet."; exit 1; }
-	cd backend && uv run uvicorn app.main:app --reload --port 8000
+.PHONY: gold-candidates
+gold-candidates: ## Turn archived traces into an annotation-ready CSV (TRACES=path)
+	@test -n "$(TRACES)" || { echo "Usage: make gold-candidates TRACES='path/to/*.json'"; exit 1; }
+	cd backend && uv run python scripts/gold_candidates.py $(TRACES) --out ../data/gold/candidates.csv
 
-# --- frontend (Stage 3) ----------------------------------------------------
+.PHONY: gold-eval
+gold-eval: ## Score the model against the annotated gold set
+	@test -f data/gold/gold.csv || { echo "No data/gold/gold.csv yet. See docs/ANNOTATION.md."; exit 1; }
+	cd backend && uv run python scripts/gold_eval.py ../data/gold/gold.csv
 
-.PHONY: ext
-ext: ## [Stage 3] Run the extension in dev mode
-	@test -f frontend/package.json || { echo "Stage 3 not delivered yet."; exit 1; }
-	cd frontend && pnpm dev
+.PHONY: report
+report: ## Markdown report from a trace JSON file (TRACE=path)
+	@test -n "$(TRACE)" || { echo "Usage: make report TRACE=path/to/trace.json"; exit 1; }
+	cd backend && uv run python scripts/trace_report.py $(TRACE)
+
+.PHONY: bench
+bench: ## Measure real inference latency against the bundle
+	@test -f $(ARTIFACTS)/model.onnx || { echo "No model.onnx in $(ARTIFACTS)."; exit 1; }
+	cd backend && uv run python scripts/bench_latency.py
 
 # --- quality ---------------------------------------------------------------
 
 .PHONY: lint
-lint: ## Lint and type-check everything implemented
-	cd ml && uv run ruff check src && uv run ruff format --check src
-	cd backend && uv run ruff check src tests && uv run ruff format --check src tests
+lint: ## Lint and type-check everything
+	cd ml && uv run --extra dev ruff check src && uv run --extra dev ruff format --check src
+	cd backend && uv run --extra dev ruff check src tests && uv run --extra dev ruff format --check src tests
+	cd frontend && npm run compile
 
 .PHONY: fmt
 fmt: ## Auto-format
-	cd ml && uv run ruff format src && uv run ruff check --fix src
-	cd backend && uv run ruff format src tests && uv run ruff check --fix src tests
+	cd ml && uv run --extra dev ruff format src && uv run --extra dev ruff check --fix src
+	cd backend && uv run --extra dev ruff format src tests && uv run --extra dev ruff check --fix src tests
 
+# `ml/` deliberately has no unit-test suite and is not part of this target.
+# Its correctness gate is empirical, not example-based: `make parity` asserts
+# the exported ONNX graph agrees with PyTorch, and `make evaluate` reports
+# macro-F1 on the template-disjoint split. A handful of unit tests over
+# training code would not catch what actually goes wrong there (a silently
+# damaged graph, a leaky split), and both of those checks do.
 .PHONY: test
-test: ## Run tests for everything implemented
-	cd ml && uv run pytest -q
-	$(MAKE) test-backend
+test: test-backend test-frontend ## Run every test suite (see `parity` for ml/)
 
 .PHONY: test-backend
-test-backend: ## [Stage 2] Run the backend test suite (skips what needs model.onnx)
-	@test -f backend/pyproject.toml || { echo "Stage 2 not delivered yet."; exit 1; }
+test-backend: ## Run the backend test suite (skips what needs model.onnx)
 	cd backend && uv run pytest -q
 
+.PHONY: test-frontend
+test-frontend: ## Run the extension test suite
+	cd frontend && npm test
+
 .PHONY: smoke-backend
-smoke-backend: ## [Stage 2] Load the real bundle and reproduce scarcity=0.626
+smoke-backend: ## Load the real bundle and reproduce scarcity=0.626
 	@test -f $(ARTIFACTS)/model.onnx || { echo "No model.onnx in $(ARTIFACTS). Run 'make export' first."; exit 1; }
 	cd backend && uv run python scripts/smoke_check.py
 
@@ -124,4 +181,4 @@ smoke-backend: ## [Stage 2] Load the real bundle and reproduce scarcity=0.626
 clean: ## Remove caches and build artifacts (keeps model artifacts)
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +
 	find . -type d -name .pytest_cache -prune -exec rm -rf {} +
-	rm -rf ml/.ruff_cache backend/.ruff_cache
+	rm -rf ml/.ruff_cache backend/.ruff_cache frontend/.output frontend/.wxt
