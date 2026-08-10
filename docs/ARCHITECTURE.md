@@ -211,9 +211,24 @@ table serves the extension and the backend.
   cannot break it and your styles cannot break the host page.
 - Badge per finding, positioned with `getBoundingClientRect()`, repositioned on scroll
   and resize via `ResizeObserver`.
+- **Badge placement** scores several candidate positions (above / below / beside the
+  target, each viewport-clamped) against the rectangles of rendered page *text*
+  collected via `Range.getClientRects()`, and picks the one covering least. Badges are
+  measured after being attached rather than assumed to be a fixed size. When no
+  position is clean, the badge collapses to an icon-only form that expands on hover —
+  the labelled form is kept wherever there is genuinely room for it. See
+  `chooseBadgePosition` in `frontend/src/ui/overlay.ts`.
 - Side panel (Chrome Side Panel API) lists findings grouped by category, each with:
   category name, confidence band (`likely` / `possible`), the matched snippet, a
-  plain-language *why*, and a click-to-scroll-and-highlight action.
+  plain-language *why*, and a click-to-scroll-and-highlight action. Clicking a finding
+  expands a detail view (evidence provenance, matched text, element/role, model score
+  where applicable). The panel opens from the toolbar icon by default; which *side*
+  Chrome renders it on is a browser-level user preference, not settable by the
+  extension.
+- **Settings** (`frontend/src/lib/settings.ts`) live in `chrome.storage.local` so they
+  survive a browser restart. Scanning and overlay display are separate switches:
+  hiding badges is instant and keeps findings accumulating, whereas re-enabling
+  scanning costs a full re-scan.
 - **Page score:** weighted count of findings, normalised to 0–100 and bucketed
   low/medium/high. Publish the formula in the UI — an unexplained score is not
   defensible in a report.

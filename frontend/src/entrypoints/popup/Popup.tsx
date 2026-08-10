@@ -1,27 +1,35 @@
 import { useEffect, useState } from "react";
-import { SCAN_ENABLED_KEY, findingsStorageKey, type StoredFindings } from "../../lib/messaging";
+import { findingsStorageKey, type StoredFindings } from "../../lib/messaging";
+import {
+  DEFAULT_SETTINGS,
+  loadSettings,
+  onSettingsChanged,
+  updateSettings,
+  type Settings,
+} from "../../lib/settings";
 import { scoreBand } from "../../lib/merge";
 
 /**
- * On/off toggle + current-page summary. See frontend/README.md's planned
- * layout. A per-host allowlist is the eventual design; this stage ships a
- * single global toggle instead (see messaging.ts's SCAN_ENABLED_KEY comment
- * for why that's a deliberate scope cut, not a silent gap).
+ * Controls + current-page summary. See frontend/README.md's planned layout.
+ * A per-host allowlist is the eventual design; the toggles here are still
+ * global (see lib/settings.ts for what each one actually gates).
  */
 export function Popup() {
-  const [enabled, setEnabled] = useState(true);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [host, setHost] = useState<string | null>(null);
   const [findings, setFindings] = useState<StoredFindings | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [tabId, setTabId] = useState<number | null>(null);
+  /** Resolved up front so handleOpenSidePanel can stay synchronous -- see
+   * the comment there for why that matters. */
+  const [windowId, setWindowId] = useState<number | null>(null);
   const [exportStatus, setExportStatus] = useState<"idle" | "sent" | "error">("idle");
 
   useEffect(() => {
     let cancelled = false;
 
     async function load() {
-      const stored = await chrome.storage.session.get(SCAN_ENABLED_KEY);
-      const isEnabled = stored[SCAN_ENABLED_KEY] !== false; // default on
+      const current = await loadSettings();
 
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       let currentHost: string | null = null;
@@ -40,35 +48,38 @@ export function Popup() {
       }
 
       if (!cancelled) {
-        setEnabled(isEnabled);
+        setSettings(current);
         setHost(currentHost);
         setFindings(currentFindings);
         setTabId(tab?.id ?? null);
+        setWindowId(tab?.windowId ?? null);
         setLoaded(true);
       }
     }
 
     load();
 
-    const onChanged = (
-      changes: Record<string, chrome.storage.StorageChange>,
-      areaName: string,
-    ) => {
-      if (areaName !== "session") return;
-      if (SCAN_ENABLED_KEY in changes) {
-        setEnabled(changes[SCAN_ENABLED_KEY]!.newValue !== false);
-      }
-    };
-    chrome.storage.onChanged.addListener(onChanged);
+    const unsubscribe = onSettingsChanged(setSettings);
     return () => {
       cancelled = true;
-      chrome.storage.onChanged.removeListener(onChanged);
+      unsubscribe();
     };
   }, []);
 
-  async function handleToggle(next: boolean) {
-    setEnabled(next);
-    await chrome.storage.session.set({ [SCAN_ENABLED_KEY]: next });
+  async function handleSettingChange(patch: Partial<Settings>) {
+    // Optimistic: the storage write round-trips through onSettingsChanged and
+    // would otherwise leave the checkbox visibly lagging the click.
+    setSettings((prev) => ({ ...prev, ...patch }));
+    await updateSettings(patch);
+  }
+
+  function handleOpenSidePanel() {
+    if (windowId === null) return;
+    // chrome.sidePanel.open() must be called during a user gesture, and an
+    // `await` before it ends that gesture -- so the windowId it needs is
+    // resolved ahead of time in the load effect rather than looked up here.
+    // Deliberately not awaited: this handler has to stay synchronous.
+    void chrome.sidePanel.open({ windowId });
   }
 
   /**
@@ -102,19 +113,30 @@ export function Popup() {
     <div className="p-4 font-sans text-sm w-64">
       <h1 className="font-semibold mb-2">Dark Pattern Analyzer</h1>
 
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={enabled}
-          disabled={!loaded}
-          onChange={(e) => handleToggle(e.target.checked)}
-        />
-        Scan this page
-      </label>
+      <div className="space-y-1">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={settings.scanEnabled}
+            disabled={!loaded}
+            onChange={(e) => handleSettingChange({ scanEnabled: e.target.checked })}
+          />
+          Scan pages
+        </label>
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={settings.overlayVisible}
+            disabled={!loaded}
+            onChange={(e) => handleSettingChange({ overlayVisible: e.target.checked })}
+          />
+          Show badges on page
+        </label>
+      </div>
 
       {host && <p className="text-xs text-gray-500 mt-1">{host}</p>}
 
-      {loaded && enabled && (
+      {loaded && settings.scanEnabled && (
         <div className="mt-3 border-t pt-3">
           {findings ? (
             <>
@@ -133,6 +155,36 @@ export function Popup() {
           )}
         </div>
       )}
+
+      <div className="mt-3 border-t pt-3 space-y-2">
+        <button
+          type="button"
+          className="w-full border rounded px-2 py-1 text-sm hover:bg-gray-50"
+          onClick={handleOpenSidePanel}
+          disabled={windowId === null}
+        >
+          Open side panel
+        </button>
+        <label className="flex items-start gap-2 text-xs text-gray-600">
+          <input
+            type="checkbox"
+            className="mt-0.5"
+            checked={settings.openSidePanelOnIconClick}
+            disabled={!loaded}
+            onChange={(e) =>
+              handleSettingChange({ openSidePanelOnIconClick: e.target.checked })
+            }
+          />
+          <span>
+            Open the side panel when I click the extension icon (instead of this
+            popup).
+          </span>
+        </label>
+        <p className="text-[11px] text-gray-400">
+          Chrome controls which side the panel appears on. To move it left, use
+          the panel's own menu in Chrome -- an extension can't set this.
+        </p>
+      </div>
 
       <p className="text-xs text-gray-400 mt-3">
         Flags potentially manipulative patterns. Scanning is user-initiated, per

@@ -83,8 +83,8 @@ export interface StoredFindings {
   items: ClassifyItemResult[];
 }
 
-/** chrome.storage.session key for the global scan on/off toggle the popup
- * controls. A per-host allowlist is the eventual design (frontend/README.md
- * mentions it), but a single global toggle is enough for this stage and
- * documented here as the intentional scope cut rather than a silent gap. */
-export const SCAN_ENABLED_KEY = "dp/scan-enabled";
+// The scan on/off toggle used to live here as SCAN_ENABLED_KEY, a single
+// chrome.storage.session flag. It now lives in lib/settings.ts, split into
+// separate scan/display settings and persisted in chrome.storage.local --
+// see that module's header for why. A per-host allowlist remains the
+// eventual design (frontend/README.md); the toggles are still global.

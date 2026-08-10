@@ -14,12 +14,12 @@ import { modelCacheKey } from "../lib/hash";
 import type { CandidateWithHits } from "../lib/messaging";
 import {
   findingsStorageKey,
-  SCAN_ENABLED_KEY,
   type ClassifyCandidatesMessage,
   type ClassifyItemResult,
   type ExtensionMessage,
   type StoredFindings,
 } from "../lib/messaging";
+import { loadSettings, onSettingsChanged, type Settings } from "../lib/settings";
 
 const BATCH_SIZE = 32;
 const MAX_RETRIES = 3;
@@ -109,9 +109,41 @@ async function loadStoredItems(tabId: number): Promise<ClassifyItemResult[]> {
 }
 
 async function isScanEnabled(): Promise<boolean> {
-  const stored = await chrome.storage.session.get(SCAN_ENABLED_KEY);
-  // Default on -- absent means "never toggled", not "turned off".
-  return stored[SCAN_ENABLED_KEY] !== false;
+  return (await loadSettings()).scanEnabled;
+}
+
+/**
+ * Routes a toolbar-icon click to either the popup or the side panel,
+ * per the user's preference.
+ *
+ * Chrome decides this at click time from two independent pieces of state:
+ * whether the action has a popup registered, and whether
+ * `openPanelOnActionClick` is set. A registered popup always wins, so
+ * switching to the side panel means actively clearing the popup with
+ * `setPopup({ popup: "" })` -- setting the panel behaviour alone has no
+ * visible effect while a popup is still registered, which is the obvious
+ * thing to try and the reason this needs both calls.
+ *
+ * Note on placement: Chrome renders the side panel on whichever side the
+ * *user* has chosen in the browser's own UI (right by default; movable via
+ * the side panel's own context menu). There is no extension API to force it
+ * to the left -- that is a browser-level preference, not something this
+ * manifest or any call here can set.
+ */
+async function applyIconBehavior(settings: Settings): Promise<void> {
+  try {
+    await chrome.sidePanel.setPanelBehavior({
+      openPanelOnActionClick: settings.openSidePanelOnIconClick,
+    });
+    await chrome.action.setPopup({
+      popup: settings.openSidePanelOnIconClick ? "" : "popup.html",
+    });
+  } catch (err) {
+    // Older Chrome builds without the sidePanel API, or a transient failure
+    // during worker startup. The popup remains reachable either way, so this
+    // degrades to the previous behaviour rather than breaking the icon.
+    console.warn("[dark-pattern-analyzer] could not apply icon behavior", err);
+  }
 }
 
 async function handleClassifyCandidates(
@@ -323,6 +355,13 @@ export default defineBackground(() => {
       chrome.storage.session.remove(findingsStorageKey(tabId));
     }
   });
+
+  // Applied on every worker start, not just on install: MV3 kills this
+  // worker aggressively and panel behaviour does not survive that, so a
+  // once-only chrome.runtime.onInstalled hook would leave the icon reverting
+  // to the popup after the first idle timeout.
+  void loadSettings().then(applyIconBehavior);
+  onSettingsChanged((settings) => void applyIconBehavior(settings));
 
   console.log("Dark Pattern Analyzer background worker started");
 });

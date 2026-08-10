@@ -25,36 +25,144 @@ const BADGE_STYLE = `
     cursor: pointer;
     pointer-events: auto;
     white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
   }
   .badge:hover { background: #9a3412; }
   .badge.likely { background: #7c2d12; }
   .badge.possible { background: #78716c; }
+  /* Collapsed form: the warning glyph only, no label text. Used when the
+     full-width badge could not be placed without covering rendered page text
+     (see chooseBadgePosition) -- an icon roughly a fifth the width usually
+     fits in a gutter where the labelled form does not. Hovering restores the
+     label, so the information is one pointer-move away rather than lost. */
+  .badge.collapsed { padding: 2px 5px; }
+  .badge.collapsed .label { display: none; }
+  .badge.collapsed:hover .label { display: inline; }
   /* Pinned state: the badge stays visually "pressed" for as long as its
      target element is outlined, so the toggle has a visible affordance. */
   .badge.active {
     background: #ea580c;
     box-shadow: 0 0 0 2px #fffbeb, 0 1px 4px rgba(0, 0, 0, 0.5);
   }
+  .badge.active .label { display: inline; }
 `;
 
 const HIGHLIGHT_OUTLINE = "2px solid #ea580c";
 const HIGHLIGHT_OFFSET = "2px";
 const TRANSIENT_HIGHLIGHT_MS = 1500;
 
-const BADGE_APPROX_WIDTH = 140;
-const BADGE_APPROX_HEIGHT = 20;
-/** Vertical clearance kept between a badge and whatever it's placed next to
- * -- the target it's labeling, or another badge. Without this, a badge's
- * edge sits flush against the adjacent content with zero breathing room,
- * which on a dense list (search results, product grid) reads as the badge
- * "covering" the neighboring row's text. */
+/** Clearance kept between a badge and whatever it's placed next to -- the
+ * target it's labeling, or another badge. Without this, a badge's edge sits
+ * flush against the adjacent content with zero breathing room, which on a
+ * dense list (search results, product grid) reads as the badge "covering"
+ * the neighboring row's text. */
 const BADGE_GAP = 6;
-/** Bounded settle pass for pushing a badge below whatever it overlaps.
- * Re-scans every already-placed box on each attempt (not just the one that
- * caused the last push), so a chain of three or four co-located findings
- * still resolves to a clean stack instead of colliding after the first
- * nudge. */
-const MAX_SETTLE_ATTEMPTS = 24;
+
+/** A viewport-space rectangle. Structurally compatible with DOMRect for the
+ * four edges we actually use, so real `getBoundingClientRect()` results and
+ * plain test fixtures both satisfy it. */
+export interface Box {
+  top: number;
+  left: number;
+  right: number;
+  bottom: number;
+}
+
+/** Area of the overlap between two boxes; 0 when they don't intersect. Used
+ * as the penalty currency in chooseBadgePosition -- "how much does this
+ * placement cover" is a far more useful signal than the old boolean
+ * "does it collide at all", because in a dense price block *every* candidate
+ * position collides with something and the job is to pick the least bad. */
+export function intersectionArea(a: Box, b: Box): number {
+  const width = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+  const height = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+  return width > 0 && height > 0 ? width * height : 0;
+}
+
+/** Overlapping another one of our own badges is worse than overlapping page
+ * text: two stacked badges are mutually illegible, whereas a badge clipping
+ * the edge of a text run is merely untidy. Weighted rather than forbidden so
+ * a genuinely saturated cluster still resolves to *some* position instead of
+ * failing to place. */
+const PLACED_BADGE_PENALTY_WEIGHT = 8;
+
+/** How much of a nuisance a badge at `box` would be: the area of page text it
+ * covers, plus a weighted area of any already-placed badge it collides with.
+ * 0 means a genuinely clear slot. Exported so the caller can compare a
+ * labelled placement against a collapsed one and keep the better of the two
+ * (see render()), not just to be tested in isolation. */
+export function positionPenalty(box: Box, obstacles: Box[], placed: Box[]): number {
+  let penalty = 0;
+  for (const obstacle of obstacles) penalty += intersectionArea(box, obstacle);
+  for (const other of placed) {
+    penalty += PLACED_BADGE_PENALTY_WEIGHT * intersectionArea(box, other);
+  }
+  return penalty;
+}
+
+/**
+ * Picks the least-obstructive position for a badge of a known size around a
+ * known target.
+ *
+ * This replaces the previous "above, else below, then nudge down up to 24
+ * times" strategy, which had two failure modes visible on real pages:
+ * it only ever considered two positions (both vertical, so a badge in a
+ * tight vertical space had nowhere to go), and it treated collision as a
+ * boolean -- when both positions collided it kept the first one regardless
+ * of which actually covered less.
+ *
+ * Every candidate is clamped into the viewport *before* scoring, so the
+ * returned box is always fully on-screen and the score reflects where the
+ * badge will really land rather than where it would have landed unclamped.
+ *
+ * `obstacles` are boxes worth avoiding (rendered text runs, see
+ * textRectsNear); `placed` are badges already positioned this pass.
+ */
+export function chooseBadgePosition(
+  target: Box,
+  size: { width: number; height: number },
+  obstacles: Box[],
+  placed: Box[],
+  viewport: { width: number; height: number },
+): Box {
+  const { width, height } = size;
+  // Ordered by preference. Above/below the target read as labelling it;
+  // beside it is the fallback that saves badges in vertically-tight rows
+  // (a price line sandwiched between two others), which is exactly the
+  // situation the old two-position strategy could not escape.
+  const candidates: Array<{ top: number; left: number }> = [
+    { top: target.top - BADGE_GAP - height, left: target.left },
+    { top: target.top - BADGE_GAP - height, left: target.right - width },
+    { top: target.bottom + BADGE_GAP, left: target.left },
+    { top: target.bottom + BADGE_GAP, left: target.right - width },
+    { top: target.top, left: target.right + BADGE_GAP },
+    { top: target.top, left: target.left - BADGE_GAP - width },
+  ];
+
+  let best: Box | null = null;
+  let bestPenalty = Infinity;
+
+  for (const [index, candidate] of candidates.entries()) {
+    const left = Math.min(Math.max(candidate.left, 4), Math.max(4, viewport.width - width - 4));
+    const top = Math.min(Math.max(candidate.top, 4), Math.max(4, viewport.height - height - 4));
+    const box: Box = { top, left, right: left + width, bottom: top + height };
+
+    // Tiny tiebreak so that among equally-clean positions the earlier (more
+    // preferred) one wins, instead of depending on iteration order by luck.
+    const penalty = positionPenalty(box, obstacles, placed) + index * 0.01;
+
+    if (penalty < bestPenalty) {
+      bestPenalty = penalty;
+      best = box;
+    }
+    if (bestPenalty < 0.01) break; // a genuinely clear slot; stop looking
+  }
+
+  // candidates is a non-empty literal, so the loop always assigns `best`.
+  return best!;
+}
 
 interface MountedOverlay {
   update(items: ClassifyItemResult[]): void;
@@ -64,6 +172,11 @@ interface MountedOverlay {
    * re-render; without it, badges for re-rendered nodes stay missing until
    * the user happens to scroll. */
   refresh(): void;
+  /** Show or hide every badge without discarding the findings behind them.
+   * Hiding is a pure display concern -- `current` is untouched, so flipping
+   * it back on re-renders instantly from state already in hand rather than
+   * waiting on a re-scan. */
+  setVisible(visible: boolean): void;
   destroy(): void;
 }
 
@@ -101,6 +214,7 @@ export function mountOverlay(
   let resizeObserver: ResizeObserver | null = null;
   let rafHandle: number | null = null;
   let destroyed = false;
+  let visible = true;
   let lastLoggedDebugSignature = "";
 
   /**
@@ -151,42 +265,76 @@ export function mountOverlay(
   }
 
   /**
-   * True if the proposed badge box would visually cover real, unrelated
-   * page content -- not the badge's own target, not our own overlay (other
-   * badges are handled by the settle pass in render(), not here).
-   * Sample-point based rather than exhaustive: a handful of points along the
-   * box's edges is enough to catch "this lands on top of a price row" while
-   * staying cheap enough to run per badge per render.
+   * Viewport rectangles of the actual rendered *text runs* in and around the
+   * target -- the things a badge must not sit on top of.
+   *
+   * This replaces a previous boolean `overlapsForeignContent()` check that
+   * sampled `document.elementFromPoint()` and exempted anything in an
+   * ancestor/descendant relationship with the target, on the reasoning that
+   * "this is what the badge is labelling, not something it would obscure."
+   * That exemption is what let the reported bug through: when the resolved
+   * target is a *container* (a whole price block) rather than a leaf, the
+   * current-price text inside it is a descendant, so covering it was
+   * explicitly permitted. An ancestor hit is just as bad -- text belonging to
+   * a wrapping element that also contains the target got the same free pass.
+   *
+   * Working in text rectangles instead of element hit-testing sidesteps the
+   * whole question of who is related to whom: rendered glyphs are never
+   * acceptable to cover, and empty padding/background always is. That also
+   * means a badge can legitimately tuck into a target's own whitespace,
+   * which the old element-level check could never allow.
+   *
+   * Scoped to elements actually near the target (hit-tested at a ring of
+   * sample points around it) rather than walking the document, so this stays
+   * affordable at one call per badge per render.
    */
-  function overlapsForeignContent(
-    top: number,
-    left: number,
-    right: number,
-    bottom: number,
-    target: Element,
-  ): boolean {
-    const samplePoints: Array<[number, number]> = [
-      [left + 4, top + 2],
-      [right - 4, top + 2],
-      [left + 4, bottom - 2],
-      [right - 4, bottom - 2],
-      [(left + right) / 2, (top + bottom) / 2],
+  function textRectsNear(target: Element, targetRect: DOMRect): Box[] {
+    const probeElements = new Set<Element>([target]);
+
+    // Probe a ring around the target covering every position
+    // chooseBadgePosition might pick, so obstacles in each of those
+    // directions are discovered before the position is scored.
+    const margin = 28;
+    const probes: Array<[number, number]> = [
+      [targetRect.left + targetRect.width / 2, targetRect.top - margin],
+      [targetRect.left, targetRect.top - margin],
+      [targetRect.right, targetRect.top - margin],
+      [targetRect.left + targetRect.width / 2, targetRect.bottom + margin],
+      [targetRect.left, targetRect.bottom + margin],
+      [targetRect.right, targetRect.bottom + margin],
+      [targetRect.left - margin, targetRect.top + targetRect.height / 2],
+      [targetRect.right + margin, targetRect.top + targetRect.height / 2],
     ];
-    for (const [x, y] of samplePoints) {
+    for (const [x, y] of probes) {
       if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) continue;
       const found = document.elementFromPoint(x, y);
-      if (!found) continue;
-      // Our own overlay host (a closed shadow root is opaque to
-      // elementFromPoint from outside, so another one of our own badges
-      // reports as the host, not itself) -- not foreign, and already
-      // handled by the badge-vs-badge settle pass.
-      if (found === host) continue;
-      // The target's own content, or an ancestor/descendant of it -- this
-      // is what the badge is *labeling*, not something it would obscure.
-      if (found === target || target.contains(found) || found.contains(target)) continue;
-      return true;
+      // A closed shadow root is opaque to elementFromPoint from outside, so
+      // one of our own badges reports as the host element -- never an
+      // obstacle (badge-vs-badge is scored separately, with its own weight).
+      if (!found || found === host) continue;
+      probeElements.add(found);
     }
-    return false;
+
+    const rects: Box[] = [];
+    for (const el of probeElements) {
+      for (const node of el.childNodes) {
+        // Direct text children only. Descending would re-collect the same
+        // glyphs once per ancestor level; the probe set already includes the
+        // leaf elements that actually own the text.
+        if (node.nodeType !== Node.TEXT_NODE) continue;
+        if (!(node.textContent ?? "").trim()) continue;
+        try {
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          for (const rect of range.getClientRects()) {
+            if (rect.width > 0 && rect.height > 0) rects.push(rect);
+          }
+        } catch {
+          // A node detached between hit-test and range construction -- skip.
+        }
+      }
+    }
+    return rects;
   }
 
   function render() {
@@ -196,6 +344,17 @@ export function mountOverlay(
     if (!host.isConnected) document.documentElement.appendChild(host);
 
     container.innerHTML = "";
+
+    // Hidden: the container is already emptied above, and every pinned
+    // outline has to come off with the badges -- leaving a page element
+    // outlined with no badge to un-pin it would strand the user with a
+    // highlight they have no control to remove. `current` is deliberately
+    // left intact so setVisible(true) can re-render without a re-scan.
+    if (!visible) {
+      for (const el of [...outlined.keys()]) removeOutline(el);
+      return;
+    }
+
     // Debug trail: window.__dpRenderDebug after any update() shows exactly
     // why each item did or didn't get a badge -- no element found, not
     // attached to the document, zero-size, off-screen right now, or anchored
@@ -312,74 +471,26 @@ export function mountOverlay(
     // depending on whatever order `current` happened to list findings in.
     placeable.sort((a, b) => a.rect.top - b.rect.top);
 
-    interface Box {
-      top: number;
-      bottom: number;
-      left: number;
-      right: number;
-    }
     const placedBoxes: Box[] = [];
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+
+    // Phase 1: build every badge element and attach it, hidden. Nothing can
+    // be positioned until it has been measured, and nothing can be measured
+    // until it is in the document -- the previous code sidestepped this with
+    // hardcoded BADGE_APPROX_WIDTH/HEIGHT constants (140x20), but the real
+    // rendered badge is whatever the label text makes it. "false urgency"
+    // alone overflows 140px, so every collision decision was being made
+    // against a box narrower than the thing actually drawn, which is part of
+    // why badges still overlapped after collision handling "passed".
+    interface Pending {
+      item: ClassifyItemResult;
+      el: Element;
+      rect: DOMRect;
+      badge: HTMLElement;
+    }
+    const pending: Pending[] = [];
 
     for (const { item, el, finding, rect } of placeable) {
-      const left = Math.min(
-        Math.max(rect.left, 4),
-        window.innerWidth - BADGE_APPROX_WIDTH - 4,
-      );
-      const right = left + BADGE_APPROX_WIDTH;
-
-      // Prefer directly above the target, with real clearance (BADGE_GAP) --
-      // not flush against it. If there isn't room above (the element sits
-      // near the very top of the viewport), place below instead of clamping
-      // upward into whatever content precedes it.
-      let top = rect.top - BADGE_GAP - BADGE_APPROX_HEIGHT;
-      let bottom = top + BADGE_APPROX_HEIGHT;
-      if (top < 4) {
-        top = rect.bottom + BADGE_GAP;
-        bottom = top + BADGE_APPROX_HEIGHT;
-      }
-
-      // A gap large enough to clear the *target itself* can still be too
-      // small to clear whatever sits directly above it -- a real bug caught
-      // on a live page: a price block where the current-price row sat close
-      // enough above the discount badge's target that the badge, placed
-      // "above" per the rule just above, landed on top of the price digits
-      // instead. If the proposed box actually covers unrelated rendered
-      // content, flip to below the target instead.
-      if (overlapsForeignContent(top, left, right, bottom, el)) {
-        const belowTop = rect.bottom + BADGE_GAP;
-        const belowBottom = belowTop + BADGE_APPROX_HEIGHT;
-        // Only switch if below is actually clearer -- an equally-cramped
-        // "below" is no improvement, and the settle pass further down still
-        // needs *a* starting position even in a genuinely dense cluster.
-        if (!overlapsForeignContent(belowTop, left, right, belowBottom, el)) {
-          top = belowTop;
-          bottom = belowBottom;
-        }
-      }
-
-      // Settle pass: push straight down past anything already placed that
-      // this box would overlap (both axes), re-checking from scratch each
-      // attempt so a chain of several co-located findings still resolves to
-      // a clean, non-overlapping stack rather than colliding after the first
-      // nudge like the previous single-shot version did.
-      for (let attempt = 0; attempt < MAX_SETTLE_ATTEMPTS; attempt += 1) {
-        const clash = placedBoxes.find(
-          (box) => left < box.right && right > box.left && top < box.bottom && bottom > box.top,
-        );
-        if (!clash) break;
-        top = clash.bottom + BADGE_GAP;
-        bottom = top + BADGE_APPROX_HEIGHT;
-      }
-      // Final viewport clamp in case a long settle chain pushed the badge
-      // below the fold -- accepting a possible overlap here (rare: only on
-      // an extremely dense cluster) is preferable to an invisible badge.
-      if (bottom > window.innerHeight - 4) {
-        bottom = window.innerHeight - 4;
-        top = bottom - BADGE_APPROX_HEIGHT;
-      }
-
-      placedBoxes.push({ top, bottom, left, right });
-
       const badge = document.createElement("div");
       const isPinned = pinnedIds.has(item.id);
       badge.className = `badge ${finding.confidence}${isPinned ? " active" : ""}`;
@@ -387,12 +498,17 @@ export function mountOverlay(
         applyOutline(el);
         if (el instanceof HTMLElement) pinnedElements.add(el);
       }
-      badge.style.top = `${top}px`;
-      badge.style.left = `${left}px`;
-      badge.textContent =
+
+      const glyph = document.createElement("span");
+      glyph.textContent = "⚠";
+      const label = document.createElement("span");
+      label.className = "label";
+      label.textContent =
         item.findings.length > 1
-          ? `⚠ ${finding.label.replace(/_/g, " ")} +${item.findings.length - 1}`
-          : `⚠ ${finding.label.replace(/_/g, " ")}`;
+          ? `${finding.label.replace(/_/g, " ")} +${item.findings.length - 1}`
+          : finding.label.replace(/_/g, " ");
+      badge.append(glyph, label);
+
       badge.title = `${finding.description}\n(click to toggle the highlight on this element)`;
       badge.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -404,7 +520,53 @@ export function mountOverlay(
         }
         scheduleRender();
       });
+
+      // Hidden, not display:none -- it has to participate in layout to have
+      // a measurable size, but must not flash at position 0,0 before phase 2
+      // assigns it a real one.
+      badge.style.visibility = "hidden";
       container.appendChild(badge);
+      pending.push({ item, el, rect, badge });
+    }
+
+    // Phase 2: measure, place, reveal. Sequential rather than batched because
+    // each placement depends on where the previous ones landed (placedBoxes).
+    for (const { el, rect, badge } of pending) {
+      const obstacles = textRectsNear(el, rect);
+
+      const labelled = { width: badge.offsetWidth, height: badge.offsetHeight };
+      let box = chooseBadgePosition(rect, labelled, obstacles, placedBoxes, viewport);
+      let penalty = positionPenalty(box, obstacles, placedBoxes);
+
+      // Nowhere clean for the full-width labelled badge. Try the icon-only
+      // form, which is roughly a fifth the width and often fits a gutter the
+      // labelled one cannot -- but only keep it if it genuinely covers less,
+      // so badges stay readable wherever there is actually room for them.
+      // This is the adaptive half of the fix: the old code had one fixed
+      // badge size and no recourse when it didn't fit anywhere.
+      if (penalty > 0) {
+        badge.classList.add("collapsed");
+        const collapsed = { width: badge.offsetWidth, height: badge.offsetHeight };
+        const collapsedBox = chooseBadgePosition(
+          rect,
+          collapsed,
+          obstacles,
+          placedBoxes,
+          viewport,
+        );
+        const collapsedPenalty = positionPenalty(collapsedBox, obstacles, placedBoxes);
+        if (collapsedPenalty < penalty) {
+          box = collapsedBox;
+          penalty = collapsedPenalty;
+        } else {
+          badge.classList.remove("collapsed");
+        }
+      }
+
+      placedBoxes.push(box);
+      badge.style.top = `${box.top}px`;
+      badge.style.left = `${box.left}px`;
+      badge.style.visibility = "visible";
     }
 
     reconcileOutlines(pinnedElements);
@@ -483,6 +645,12 @@ export function mountOverlay(
       scheduleRender();
     },
     refresh() {
+      scheduleRender();
+    },
+    setVisible(next: boolean) {
+      if (next === visible) return;
+      visible = next;
+      console.log(`[dark-pattern-analyzer] overlay ${next ? "shown" : "hidden"}`);
       scheduleRender();
     },
     destroy() {

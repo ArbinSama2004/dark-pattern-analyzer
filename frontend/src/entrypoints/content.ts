@@ -18,6 +18,7 @@ import type {
 import { recordObservation, isAnimated } from "../lib/timer-tracker";
 import { mountOverlay, scrollAndHighlight } from "../ui/overlay";
 import { resolveOccurrence, type ResolveDiagnostic } from "../lib/resolve";
+import { DEFAULT_SETTINGS, loadSettings, onSettingsChanged, type Settings } from "../lib/settings";
 
 const DEBOUNCE_MS = 300;
 
@@ -130,6 +131,35 @@ export default defineContentScript({
     }
 
     const overlay = mountOverlay(resolveForItem);
+
+    /**
+     * Local mirror of the user's settings, kept current by the subscription
+     * below. Held synchronously (rather than awaited at each use) because the
+     * hot paths that read it -- the extraction gate, the overlay's visibility
+     * -- run on every mutation, and an await per mutation would put a storage
+     * round trip in the middle of the observer loop.
+     *
+     * Starts at DEFAULT_SETTINGS (everything on) rather than blocking on the
+     * first read: the initial extraction is debounced by ~300ms, which the
+     * load below comfortably wins, and defaulting to "on" means a storage
+     * failure degrades to the extension working rather than silently doing
+     * nothing.
+     */
+    let settings: Settings = { ...DEFAULT_SETTINGS };
+
+    function applySettings(next: Settings): void {
+      const wasScanning = settings.scanEnabled;
+      settings = next;
+      overlay.setVisible(next.overlayVisible);
+      // Scanning just came back on. Mutations that arrived while it was off
+      // were dropped rather than queued, so without kicking a pass here the
+      // page would stay unscanned until it next happened to mutate -- on a
+      // static product page, potentially never.
+      if (!wasScanning && next.scanEnabled) scheduleExtraction();
+    }
+
+    void loadSettings().then(applySettings);
+    onSettingsChanged(applySettings);
     // Ids already sent to background this session -- avoid resending a
     // candidate the backend has already resolved (docs/ARCHITECTURE.md 4.1,
     // "Hash and dedupe"). The background worker also dedupes independently
@@ -198,6 +228,12 @@ export default defineContentScript({
 
     async function runExtraction() {
       lastExtractionAt = Date.now();
+      // Scanning off: no extraction, no rules, no network. Checked here
+      // rather than only in background.ts (which also gates) so a disabled
+      // scan costs nothing at all on the page -- the previous single-flag
+      // design still ran the full extract-and-rules pass on every mutation
+      // and only dropped the work at the far end of the message channel.
+      if (!settings.scanEnabled) return;
       // New nodes may have appeared -- give previously unresolvable findings
       // another chance to bind to the freshly rendered DOM.
       unresolvable.clear();
