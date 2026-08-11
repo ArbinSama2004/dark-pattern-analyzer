@@ -188,3 +188,115 @@ describe("extractCandidatesWithElements self-duplicate collapsing", () => {
     expect(texts).toContain("Free shipping on all orders today");
   });
 });
+
+describe("nested duplicate collapsing", () => {
+  /** Every element in the fixture reports a real offsetParent, so isVisible()
+   * behaves as it would under a browser layout engine. */
+  function makeEverythingVisible() {
+    for (const el of Array.from(document.body.querySelectorAll("*"))) {
+      stubOffsetParent(el as HTMLElement, document.body);
+    }
+  }
+
+  it("emits one candidate when a block wraps a single inline node", async () => {
+    // The shape that produced two badges on one string: the div has no direct
+    // text, so leafBlockText coalesces the span and emits the same words a
+    // second time under a different selector.
+    document.body.innerHTML = `<div class="sold"><span>958 sold</span></div>`;
+    makeEverythingVisible();
+
+    const candidates = await extractCandidates("en");
+
+    expect(candidates.filter((c) => c.text === "958 sold")).toHaveLength(1);
+  });
+
+  it("keeps the innermost element, so a badge is not anchored to an image", async () => {
+    // <img> is an inline tag, so this card link qualifies as a leaf block: its
+    // candidate text is the title but its box spans the image. Anchoring
+    // there is what outlined an entire product image on click.
+    document.body.innerHTML = `
+      <a href="/p/1" class="card"><img src="x.jpg" alt=""><span class="title">Wireless Earbuds</span></a>`;
+    makeEverythingVisible();
+
+    const pairs = await extractCandidatesWithElements("en");
+    const title = pairs.filter((p) => p.candidate.text === "Wireless Earbuds");
+
+    expect(title).toHaveLength(1);
+    expect(title[0]!.el.tagName.toLowerCase()).toBe("span");
+    expect(title[0]!.el.querySelector("img")).toBeNull();
+  });
+
+  it("carries the wrapper's role down to the element it keeps", async () => {
+    // The class that identifies this text lives on the wrapper; the inline
+    // child has nothing to infer from and falls back to "body". Role is part
+    // of the model input string, so dropping the wrapper must not change what
+    // the model is asked.
+    document.body.innerHTML = `<div class="stock-info"><span>Only 3 items left</span></div>`;
+    makeEverythingVisible();
+
+    const candidates = await extractCandidates("en");
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]!.role).toBe("stock");
+  });
+
+  it("prefers the closest wrapper's role over a more distant one", async () => {
+    document.body.innerHTML = `
+      <div class="promo-wrap"><div class="stock-info"><span>Only 3 items left</span></div></div>`;
+    makeEverythingVisible();
+
+    const candidates = await extractCandidates("en");
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]!.role).toBe("stock");
+  });
+
+  it("keeps a joined string alongside the children it was built from", async () => {
+    // Narrow by design: only *identical* text collapses. The joined price
+    // comparison is a string no child carries, and it is the thing worth
+    // judging -- collapsing it away would lose the only candidate that shows
+    // the original and the sale price together.
+    document.body.innerHTML = `<div class="price"><s>Rs. 2,499</s><span>Rs. 1,199</span></div>`;
+    makeEverythingVisible();
+
+    const texts = (await extractCandidates("en")).map((c) => c.text);
+
+    expect(texts).toContain("Rs. 2,499 Rs. 1,199");
+    expect(texts).toContain("Rs. 2,499");
+    expect(texts).toContain("Rs. 1,199");
+  });
+
+  it("keeps both occurrences when the wrapper has text of its own", async () => {
+    // Renders as "Hello Hello": two real occurrences, not an extraction
+    // artifact. Only a wrapper with no text of its own is a duplicate.
+    document.body.innerHTML = `<div id="outer">Hello<span>Hello</span></div>`;
+    makeEverythingVisible();
+
+    const candidates = await extractCandidates("en");
+
+    expect(candidates.filter((c) => c.text === "Hello")).toHaveLength(2);
+  });
+
+  it("keeps the same text appearing in two separate cards", async () => {
+    // Sibling occurrences are distinct findings on distinct products; only a
+    // containment relationship makes two candidates the same words.
+    document.body.innerHTML = `
+      <div class="a"><span>Only 3 items left</span></div>
+      <div class="b"><span>Only 3 items left</span></div>`;
+    makeEverythingVisible();
+
+    const candidates = await extractCandidates("en");
+
+    expect(candidates.filter((c) => c.text === "Only 3 items left")).toHaveLength(2);
+  });
+
+  it("collapses a three-level chain down to one candidate", async () => {
+    document.body.innerHTML = `<div class="outer"><div class="mid"><span>958 sold</span></div></div>`;
+    makeEverythingVisible();
+
+    const pairs = await extractCandidatesWithElements("en");
+
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0]!.el.tagName.toLowerCase()).toBe("span");
+  });
+});

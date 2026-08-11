@@ -306,6 +306,61 @@ number in this project is measured on synthetic data it generated itself.
 
 ---
 
+## Extraction fields, and two defects they fixed (2026-08-11)
+
+Reported symptoms: the same text badged twice, an entire product image outlined as
+a finding, and product titles labelled as dark patterns. All three were reproduced
+in unit fixtures against the real extraction and rule code before anything was
+changed.
+
+**Wrapper/child double extraction.** The leaf-block fallback and ordinary
+direct-text extraction both fire on `<div class="sold"><span>958 sold</span></div>`:
+the div has no direct text, so the child is coalesced and emitted, then the child
+emits it again. Both survive `seen`, which is keyed by `occurrenceId` and folds in
+the selector. Measured on a Daraz-shaped card: 13 candidates for 8 distinct
+strings, five doubled. `collapseNestedDuplicates` now keeps the innermost element
+and inherits the wrapper's role -- the role carries the site's own class-name
+signal (`stock-info`, `pdp-discount`) and is part of the model input, so dropping
+it would have changed the question the model is asked.
+
+That also fixed the image case: `<img>` is an inline tag, so `<a><img><span>title
+</span></a>` is a leaf block whose text is the title but whose element spans the
+image. The badge was faithfully outlining the element it was handed.
+
+**A rule with no idea what it was reading.** `stock_counter` matches
+`/limited\s+(time|offer|stock)/i` unanchored, so "Hot Sale Wireless Earbuds
+Limited Stock Offer" was reported as `scarcity` -- at `likely`, the strongest
+confidence in the UI, since a rule-only hit outranks a model-only one. Measured
+against the live backend, the classifier called the same title **benign at 0.896**:
+the rule layer was the source of the false positive, not the model.
+
+This is the same class of defect as the `"N sold"` finding in RESULTS.md sections
+6-7, and it was equally invisible offline: the 400-row silver set contains **zero**
+rows matching `limited (time|offer|stock)`, `lowest price` or `hurry`, and it is
+deduplicated by text (393 distinct texts in 400 rows), so neither the false
+positive nor the duplication could show up in `make gold-eval`.
+
+**The fix was not more rules.** Rule count governs recall; every reported symptom
+was a false positive. What the rules lacked was knowledge of *what they were
+reading*. `lib/extract/fields.ts` now infers a field -- title, price, strike_price,
+discount, rating, sold_count, stock, shipping, unknown -- from structural evidence
+(`<s>`/`<del>`, `<a href>`, heading tags, repeated sibling templates) and text
+shape, never from site-specific selectors. Text-matching rules declare the fields
+they must not fire on. `unknown` never blocks anything: absence of evidence is not
+evidence.
+
+Verified on Daraz-shaped and Amazon-shaped fixtures: titles containing "Limited
+Stock" and "Limited time deal" produce no rule hits, while a standalone "Limited
+time deal" *badge* still fires `stock_counter` -- the discrimination the rule
+always needed and never had.
+
+**Not measured on live pages.** Field inference is verified only on unit fixtures.
+`strike_price` depends on computed `text-decoration`, which jsdom does not
+evaluate, so its live behaviour is unverified. A trace from a real storefront is
+the next thing needed.
+
+---
+
 ## Known open items
 
 | Item | Priority | Stage |

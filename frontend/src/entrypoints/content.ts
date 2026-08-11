@@ -69,6 +69,10 @@ interface TraceEntry {
   text: string;
   tag: string;
   role: string;
+  /** Which part of a product listing this is (fields.ts). The single most
+   * useful column when reading a trace back: it says whether a rule fired on
+   * a badge or on a seller's title copy. */
+  field: string;
   step: string | null;
   selector: string;
   /** Local rule names that fired for this candidate (independent of the
@@ -329,6 +333,7 @@ export default defineContentScript({
             text: item.text,
             tag: item.tag,
             role: item.role,
+            field: "unknown",
             step: null,
             selector: item.selector,
             ruleHits: [],
@@ -431,16 +436,18 @@ export default defineContentScript({
       // New nodes may have appeared -- give previously unresolvable findings
       // another chance to bind to the freshly rendered DOM.
       unresolvable.clear();
-      const pairs = await extractCandidatesWithElements(lang);
+      // The cadence tracker is passed in rather than applied afterwards:
+      // role inference needs it. A bare "MM:SS" is a countdown only if it
+      // ticks -- without that, every video clip length on the page was typed
+      // role=timer, and the model was told to read it as urgency.
+      const pairs = await extractCandidatesWithElements(lang, document, isAnimated);
 
-      // Timer cadence: record every element's current text on every pass
-      // (this function itself runs on every mutation via the fast observer
-      // below, not just the debounced one) so is_animated can be measured
-      // before rules run.
+      // Record every element's current text on every pass (this function runs
+      // on every mutation via the fast observer below, not just the debounced
+      // one) so the next pass's cadence reading is current.
       for (const { candidate, el } of pairs) {
         elementRegistry.set(candidate.id, el);
         recordObservation(candidate.selector, candidate.text);
-        candidate.is_animated = isAnimated(candidate.selector);
       }
 
       const withHits: CandidateWithHits[] = pairs.map(({ candidate, el }) => ({
@@ -450,7 +457,15 @@ export default defineContentScript({
 
       const toSend = withHits.filter(
         ({ candidate }) =>
-          !sentIds.has(candidate.id) && !sentChurnKeys.has(churnKeyFor(candidate)),
+          !sentIds.has(candidate.id) &&
+          !sentChurnKeys.has(churnKeyFor(candidate)) &&
+          // Running prose -- a customer review, a Q&A answer -- is writing,
+          // not interface copy, and the classifier was fine-tuned on
+          // interface copy. Across three real pages it produced 28 of 57
+          // findings, every one of them a false positive. Local rules still
+          // run on it (a structural gate inside a long modal paragraph is
+          // still a gate); only the model round trip is skipped.
+          candidate.field !== "prose",
       );
 
       // Base trace entry for every candidate this pass saw, whether new or
@@ -469,6 +484,7 @@ export default defineContentScript({
           text: candidate.text,
           tag: candidate.tag,
           role: candidate.role,
+          field: candidate.field,
           step: candidate.step,
           selector: candidate.selector,
           ruleHits: ruleHits.map((h) => h.rule),
@@ -489,7 +505,12 @@ export default defineContentScript({
       // tag and role -- the fastest way to see whether extraction is
       // fragmenting sentences across inline tags or genuinely finding little.
       (window as unknown as Record<string, unknown>).__dpLastPairs = pairs.map(
-        ({ candidate }) => ({ text: candidate.text, tag: candidate.tag, role: candidate.role }),
+        ({ candidate }) => ({
+          text: candidate.text,
+          tag: candidate.tag,
+          role: candidate.role,
+          field: candidate.field,
+        }),
       );
       // `churn-suppressed` counts candidates with an unseen id whose
       // digit-masked key was already sent -- i.e. counters that ticked. A
@@ -876,6 +897,7 @@ function scheduleTraceSummaryLog(trace: ReadonlyMap<string, TraceEntry>): void {
         text: r.text.length > 60 ? `${r.text.slice(0, 60)}…` : r.text,
         tag: r.tag,
         role: r.role,
+        field: r.field,
         step: r.step,
         sent: r.sentToModel,
         status:

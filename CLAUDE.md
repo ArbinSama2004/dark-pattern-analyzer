@@ -123,6 +123,7 @@ thing likely to move it materially.
 
 | Doc | For |
 |---|---|
+| `docs/DATAFLOW.md` | how one string becomes a label, step by step, module by module |
 | `docs/RESULTS.md` | every measured number |
 | `docs/PROGRESS.md` | what was done and why, including what went wrong |
 | `docs/ARCHITECTURE.md` | system design and API contract |

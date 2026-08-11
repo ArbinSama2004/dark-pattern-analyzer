@@ -611,3 +611,70 @@ test passing." Both are now satisfied.
 
 **Stage 1 is closed as of this run.** Next work starts Stage 2: FastAPI inference
 service, as scoped in the handoff.
+
+---
+
+## Real-page trace baseline, three sites (2026-08-11)
+
+Captured with the extension's own debug trace on live pages, **before** the
+role/prose changes of the same date. Not an evaluation -- there are no labels
+here, and no metric is computed. It is a census of what the pipeline emitted, and
+the baseline any later trace should be compared against. The trace files
+themselves are not kept (they contain real page text).
+
+| | Jeevee | Daraz | Amazon |
+|---|---:|---:|---:|
+| candidate rows | 180 | 429 | 905 |
+| findings emitted | 2 | 5 | 50 |
+| rows with a known field | 27% | 15% | 48% |
+| wrapper/child duplicate extractions | 0 | 0 | 0 |
+| `stock_counter` / `recent_activity` hits | 0 | 0 | 0 |
+
+The two zero rows confirm the duplicate collapse and the field gate held on real
+pages, not only on fixtures -- 1,514 rows, no duplicate wrapper/child pair, and no
+product title flagged by a text-matching rule.
+
+Daraz's 429 rows include 254 ticks of a single countdown; churn suppression kept
+252 of them off the wire.
+
+### Where the 57 findings came from
+
+Amazon's 50 decomposed into three mechanical causes, and **not one of the 50 was a
+defensible finding**:
+
+| count | cause |
+|---:|---|
+| 17 | customer review prose, mostly `confirmshaming` |
+| 12 | the word "Cancelling" -- `role=decline`, then `cancel_offsite` / `cta_asymmetry` |
+| 10 | video clip durations (`0:40`, `13:42`) typed `role=timer`, then `false_urgency` |
+| 11 | other, mostly review and Q&A prose |
+
+Measured signatures:
+
+- **`role=decline`: 28 rows, 28 of 28 containing "Cancelling"/"Cancellation".**
+  `matchesAny` used `text.includes("cancel")`, so every noise-cancelling headphone
+  title became a decline control -- and the model was then told so.
+- **`confirmshaming`: 27 findings, median text length 100 characters.** The model
+  was fine-tuned on UI microcopy (p95 34 tokens) and `confirmshaming` carries the
+  lowest threshold of the eight classes (0.11), so review paragraphs clear it.
+- **`role=timer`: 10 of 12 Amazon rows were clip lengths.** `isVideoPlayerContext`
+  can only recognise players whose class names it lists; that carousel matched
+  none of them.
+
+Across all three sites, 28 of the 57 findings were prose.
+
+Defensible findings on Daraz: `Login or Register to ask the seller now` ->
+`forced_action`, and an `11:26:44` flash-sale countdown -> `false_urgency`.
+
+### The Nepali finding
+
+Jeevee produced `obstruction` for `कुनै पनि मद्दत को लागी तपाइँ हामीलाई कल गर्न सक्नुहुन्छ`
+("you can call us for any help") with **no rule hit** -- the classifier read
+Devanagari unaided, which is the first real-page evidence of cross-lingual
+behaviour this project has.
+
+It is also most likely **wrong**. Obstruction means making it hard to cancel or opt
+out; a support offer is not that. The most plausible reading is that the model
+learned the cancel-by-phone pattern and carried "call us" across languages. Treat
+this as evidence the model reads Nepali, **not** as evidence it reads it correctly.
+Nepali remains unevaluated.

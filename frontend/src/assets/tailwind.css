@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Page-level colours for the popup and side panel. Kept here rather than as
+   utilities on a wrapper div so the canvas behind the React tree is right too
+   -- a white body showing through around a dark panel is the whole reason
+   this needs to be on `body`, not on the app root. */
+@layer base {
+  body {
+    @apply bg-white text-gray-900;
+  }
+
+  .dark body {
+    @apply bg-gray-900 text-gray-100;
+  }
+}

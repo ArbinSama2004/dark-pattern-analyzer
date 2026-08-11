@@ -68,6 +68,15 @@ describe("normalizeSettings", () => {
       DEFAULT_SETTINGS,
     );
   });
+
+  it("accepts only the three known theme values", () => {
+    expect(normalizeSettings({ theme: "dark" }).theme).toBe("dark");
+    expect(normalizeSettings({ theme: "light" }).theme).toBe("light");
+    // A string is not enough: an unrecognised value would be written
+    // straight into the document's `color-scheme` by applyTheme.
+    expect(normalizeSettings({ theme: "solarized" }).theme).toBe("system");
+    expect(normalizeSettings({ theme: 1 }).theme).toBe("system");
+  });
 });
 
 describe("loadSettings / updateSettings", () => {
@@ -108,7 +117,18 @@ describe("loadSettings / updateSettings", () => {
       "openSidePanelOnIconClick",
       "overlayVisible",
       "scanEnabled",
+      "theme",
     ]);
+  });
+
+  it("stores the theme preference across a restart, not just a session", async () => {
+    // Same reasoning as scanEnabled: appearance is a preference, so it lives
+    // in chrome.storage.local. Asserting the round trip here because a theme
+    // that silently reverts reads as the toggle not working at all.
+    await updateSettings({ theme: "dark" });
+
+    expect((await loadSettings()).theme).toBe("dark");
+    expect(chrome.storage.local.set).toHaveBeenCalled();
   });
 
   it("keeps scanning and overlay visibility independent", async () => {

@@ -17,6 +17,7 @@ import {
   updateSettings,
   type Settings,
 } from "../../lib/settings";
+import { ThemeToggle } from "../../ui/ThemeToggle";
 
 /**
  * Findings grouped by category, page score, click-to-expand explanation, and
@@ -186,7 +187,7 @@ export function SidePanel() {
         <h1 className="font-semibold">Findings</h1>
         <button
           type="button"
-          className="text-xs underline text-gray-500 hover:text-gray-700"
+          className="text-xs underline text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
           onClick={() => setShowSettings((prev) => !prev)}
         >
           {showSettings ? "Hide settings" : "Settings"}
@@ -194,7 +195,7 @@ export function SidePanel() {
       </div>
 
       {showSettings && (
-        <div className="border rounded p-2 mb-3 space-y-1 bg-gray-50">
+        <div className="border border-gray-200 dark:border-gray-700 rounded p-2 mb-3 space-y-1 bg-gray-50 dark:bg-gray-800">
           <label className="flex items-center gap-2 text-xs">
             <input
               type="checkbox"
@@ -222,7 +223,21 @@ export function SidePanel() {
             />
             <span>Open this panel when I click the extension icon</span>
           </label>
-          <p className="text-[11px] text-gray-400 pt-1">
+
+          <div className="pt-1">
+            <div className="text-xs mb-1">Appearance</div>
+            <ThemeToggle
+              value={settings.theme}
+              onChange={(theme) => handleSettingChange({ theme })}
+            />
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+              Applies to this panel and the popup. Badges drawn on the page keep
+              their own colours -- they have to stay legible over whatever the
+              site itself looks like.
+            </p>
+          </div>
+
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 pt-1">
             Chrome controls which side this panel appears on -- use the panel's
             own menu in Chrome to move it. An extension can't set that.
           </p>
@@ -231,13 +246,13 @@ export function SidePanel() {
       )}
 
       {stored ? (
-        <p className="text-xs text-gray-500 mb-4">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
           Page score: <span className="font-medium">{stored.pageScore}/100</span>{" "}
           ({band}) -- {stored.items.length}{" "}
           {stored.items.length === 1 ? "snippet" : "snippets"} flagged
         </p>
       ) : (
-        <p className="text-xs text-gray-500 mb-4">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
           {settings.scanEnabled
             ? "No scan run yet. Findings will appear here grouped by category."
             : "Scanning is off. Turn it back on in Settings to analyse this page."}
@@ -245,13 +260,13 @@ export function SidePanel() {
       )}
 
       {grouped.size === 0 && stored && (
-        <p className="text-xs text-gray-500">Nothing flagged on this page.</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">Nothing flagged on this page.</p>
       )}
 
-      <div className="border-t pt-3 mb-4">
+      <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mb-4">
         <button
           type="button"
-          className="w-full border rounded px-2 py-1 text-xs bg-white hover:bg-gray-50 disabled:opacity-50"
+          className="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
           onClick={handleArchiveScan}
           disabled={archiveState.status === "saving" || tabId === null}
         >
@@ -260,15 +275,15 @@ export function SidePanel() {
         {/* Said plainly, next to the control that does it: this is the one
             action that sends page text off the machine, and a user cannot
             weigh a choice they were not told about. */}
-        <p className="text-[11px] text-gray-500 mt-1">
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
           Uploads the text extracted from this page to your backend's MinIO
           archive, for evaluating detection. Nothing is sent unless you click.
         </p>
         {archiveState.status === "done" && (
-          <p className="text-[11px] text-green-700 mt-1">{archiveState.message}</p>
+          <p className="text-[11px] text-green-700 dark:text-green-400 mt-1">{archiveState.message}</p>
         )}
         {archiveState.status === "error" && (
-          <p className="text-[11px] text-red-600 mt-1">{archiveState.message}</p>
+          <p className="text-[11px] text-red-600 dark:text-red-400 mt-1">{archiveState.message}</p>
         )}
       </div>
 
@@ -276,24 +291,24 @@ export function SidePanel() {
         {[...grouped.entries()].map(([label, items]) => (
           <div key={label}>
             <div className="font-medium capitalize">{label.replace(/_/g, " ")}</div>
-            <div className="text-xs text-gray-500 mb-2">{LABEL_DESCRIPTIONS[label]}</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">{LABEL_DESCRIPTIONS[label]}</div>
             <ul className="space-y-2">
               {items.map((item) => {
                 const finding = item.findings.find((f) => (f.label as Label) === label)!;
                 const key = `${item.id}:${label}`;
                 return (
-                  <li key={key} className="border rounded">
+                  <li key={key} className="border border-gray-200 dark:border-gray-700 rounded">
                     <button
                       type="button"
-                      className="w-full text-left p-2 cursor-pointer hover:bg-gray-50"
+                      className="w-full text-left p-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                       aria-expanded={expanded === key}
                       onClick={() => setExpanded((prev) => (prev === key ? null : key))}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs uppercase tracking-wide text-gray-400">
+                        <span className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500">
                           {finding.confidence}
                         </span>
-                        <span className="text-xs text-gray-400">{item.role}</span>
+                        <span className="text-xs text-gray-400 dark:text-gray-500">{item.role}</span>
                       </div>
                       <div className="text-sm mt-1 line-clamp-2">{item.text}</div>
                     </button>
@@ -348,20 +363,20 @@ function FindingDetail({
       : "The text classifier flagged the wording. No structural rule corroborated it, so treat this as weaker evidence.";
 
   return (
-    <div className="border-t p-2 space-y-2 bg-gray-50">
+    <div className="border-t border-gray-200 dark:border-gray-700 p-2 space-y-2 bg-gray-50 dark:bg-gray-800">
       <div>
-        <div className="text-[11px] uppercase tracking-wide text-gray-400">Why</div>
-        <p className="text-xs text-gray-700">{finding.description}</p>
+        <div className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Why</div>
+        <p className="text-xs text-gray-700 dark:text-gray-300">{finding.description}</p>
       </div>
 
       <div>
-        <div className="text-[11px] uppercase tracking-wide text-gray-400">Evidence</div>
-        <p className="text-xs text-gray-700">{provenance}</p>
+        <div className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Evidence</div>
+        <p className="text-xs text-gray-700 dark:text-gray-300">{provenance}</p>
         <div className="flex gap-1 mt-1">
           {finding.source.map((s) => (
             <span
               key={s}
-              className="text-[10px] uppercase tracking-wide bg-gray-200 rounded px-1"
+              className="text-[10px] uppercase tracking-wide bg-gray-200 dark:bg-gray-700 rounded px-1"
             >
               {s}
             </span>
@@ -370,17 +385,17 @@ function FindingDetail({
       </div>
 
       <div>
-        <div className="text-[11px] uppercase tracking-wide text-gray-400">
+        <div className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
           Matched text
         </div>
-        <p className="text-xs text-gray-700 break-words">"{item.text}"</p>
+        <p className="text-xs text-gray-700 dark:text-gray-300 break-words">"{item.text}"</p>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-gray-500">
+      <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
         <dt>Confidence</dt>
-        <dd className="text-gray-700">{finding.confidence}</dd>
+        <dd className="text-gray-700 dark:text-gray-300">{finding.confidence}</dd>
         <dt>Element</dt>
-        <dd className="text-gray-700">
+        <dd className="text-gray-700 dark:text-gray-300">
           &lt;{item.tag}&gt; as {item.role}
         </dd>
         {/* Score is only meaningful for model findings -- a rule hit is
@@ -389,7 +404,7 @@ function FindingDetail({
         {hasModel && (
           <>
             <dt>Model score</dt>
-            <dd className="text-gray-700">
+            <dd className="text-gray-700 dark:text-gray-300">
               {finding.score.toFixed(2)} (threshold {finding.threshold.toFixed(2)})
             </dd>
           </>
@@ -397,14 +412,14 @@ function FindingDetail({
       </dl>
 
       <div>
-        <div className="text-[11px] uppercase tracking-wide text-gray-400">
+        <div className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">
           In more detail
         </div>
 
         {explain.status === "idle" && (
           <button
             type="button"
-            className="w-full border rounded px-2 py-1 text-xs bg-white hover:bg-gray-100 mt-1"
+            className="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 mt-1"
             onClick={explain.run}
           >
             Explain this finding
@@ -412,21 +427,21 @@ function FindingDetail({
         )}
 
         {explain.status === "loading" && (
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Writing an explanation... a local model can take a while.
           </p>
         )}
 
         {explain.status === "done" && (
           <>
-            <p className="text-xs text-gray-700 mt-1 whitespace-pre-wrap">
+            <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 whitespace-pre-wrap">
               {explain.explanation}
             </p>
             {/* Disclosure, not decoration: a different system wrote this text
                 than flagged the element, and the reader is entitled to know
                 which -- especially when the explanation is more fluent and
                 confident-sounding than the classifier's own evidence. */}
-            <p className="text-[10px] text-gray-400 mt-1">
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
               Written by {explain.model}. It explains the finding above; it did
               not make it, and cannot change it.
             </p>
@@ -435,11 +450,11 @@ function FindingDetail({
 
         {explain.status === "error" && (
           <div className="mt-1">
-            <p className="text-xs text-red-600">{explain.error}</p>
+            <p className="text-xs text-red-600 dark:text-red-400">{explain.error}</p>
             {explain.retryable && (
               <button
                 type="button"
-                className="text-xs underline text-gray-500 hover:text-gray-700 mt-1"
+                className="text-xs underline text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mt-1"
                 onClick={explain.run}
               >
                 Try again
@@ -451,7 +466,7 @@ function FindingDetail({
 
       <button
         type="button"
-        className="w-full border rounded px-2 py-1 text-xs bg-white hover:bg-gray-100"
+        className="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700"
         onClick={onScrollTo}
       >
         Show me on the page

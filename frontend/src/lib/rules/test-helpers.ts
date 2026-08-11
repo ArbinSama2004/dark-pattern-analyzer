@@ -7,6 +7,7 @@ export function makeCandidate(overrides: Partial<Candidate> = {}): Candidate {
     text: "",
     tag: "span",
     role: "body" as Role,
+    field: "unknown",
     lang: "en",
     visible: true,
     font_px: 14,

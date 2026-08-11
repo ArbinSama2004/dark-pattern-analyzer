@@ -1,4 +1,4 @@
-import type { Candidate } from "../extract/types";
+import type { Candidate, Field } from "../extract/types";
 import { stockCounter } from "./stock_counter";
 import { countdownTimer } from "./countdown_timer";
 import { viewerCounter } from "./viewer_counter";
@@ -31,8 +31,60 @@ const RULES: Rule[] = [
   recentActivity,
 ];
 
+/**
+ * Fields a text-matching rule must never fire on.
+ *
+ * The rules are unanchored regexes over whatever string they are handed, with
+ * no idea what that string is. `stock_counter` matching "Limited Stock" is
+ * correct on a badge that reads "Limited Stock -- only 3 left" and wrong on
+ * "Hot Sale Wireless Earbuds Limited Stock Offer", which is a seller's title
+ * copy. Nothing in the text distinguishes them; the *field* does.
+ *
+ * Why a deny-list per rule rather than one global "never judge titles":
+ * `recent_activity` firing on a title would be just as wrong, but
+ * `cta_asymmetry` reading a title is meaningless rather than harmful, and a
+ * blanket rule would need every future rule to opt out correctly. Naming the
+ * fields each rule is known to misfire on keeps the claim narrow and
+ * reviewable against docs/ANNOTATION.md.
+ *
+ * Only the four text-matching rules are listed. The rules that read live DOM
+ * state (prechecked_optin, hidden_optout, cta_asymmetry, cancel_offsite,
+ * forced_action_gate, countdown_timer's cadence check) are judging structure,
+ * not wording, and structure means the same thing wherever it appears.
+ *
+ * A candidate whose field is `unknown` is never blocked -- absence of evidence
+ * is not evidence, and blocking on it would silently disable rules on every
+ * page whose markup this cannot read.
+ */
+const FIELD_DENY_LIST: Record<string, readonly Field[]> = {
+  // Seller-written product copy. A title containing "Limited Stock" or
+  // "Lowest Price" is marketing prose; docs/ANNOTATION.md treats a settled
+  // claim as benign, and the classifier agrees (real titles score benign
+  // ~0.90). Ratings and prices are settled facts by the same test.
+  stock_counter: ["title", "rating", "price", "strike_price", "prose"],
+  recent_activity: ["title", "rating", "price", "strike_price", "prose"],
+  viewer_counter: ["title", "rating", "price", "strike_price", "prose"],
+  // A discount belongs on a discount. Left free to fire on `discount` itself,
+  // which is what the rule is for.
+  discount_badge: ["title", "rating", "sold_count", "prose"],
+  // A product title is never an interactive control. Defence in depth behind
+  // the word-boundary fix in role.ts: these two only fired on titles because
+  // "Noise Cancelling" had been mistyped as role=decline, and a second
+  // independent reason to refuse costs nothing.
+  cancel_offsite: ["title", "prose"],
+  cta_asymmetry: ["title"],
+};
+
+/** True if `rule` is allowed to report a hit on a candidate in `field`. */
+export function ruleAllowedOnField(rule: string, field: Field): boolean {
+  if (field === "unknown") return true;
+  return !(FIELD_DENY_LIST[rule] ?? []).includes(field);
+}
+
 export function runRules(candidate: Candidate, el: Element): RuleHit[] {
-  return RULES.flatMap((rule) => rule(candidate, el));
+  return RULES.flatMap((rule) => rule(candidate, el)).filter((hit) =>
+    ruleAllowedOnField(hit.rule, candidate.field),
+  );
 }
 
 export * from "./types";

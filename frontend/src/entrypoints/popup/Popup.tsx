@@ -13,6 +13,7 @@ import {
   type Settings,
 } from "../../lib/settings";
 import { scoreBand } from "../../lib/merge";
+import { ThemeToggle } from "../../ui/ThemeToggle";
 
 /**
  * Controls + current-page summary. See frontend/README.md's planned layout.
@@ -167,10 +168,10 @@ export function Popup() {
         </label>
       </div>
 
-      {host && <p className="text-xs text-gray-500 mt-1">{host}</p>}
+      {host && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{host}</p>}
 
       {loaded && settings.scanEnabled && (
-        <div className="mt-3 border-t pt-3">
+        <div className="mt-3 border-t border-gray-200 dark:border-gray-700 pt-3">
           {findings ? (
             <>
               <p className="text-sm">
@@ -178,27 +179,27 @@ export function Popup() {
                 {count === 1 ? "finding" : "findings"} on this page
               </p>
               {band && (
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   Page score: {findings.pageScore}/100 ({band})
                 </p>
               )}
             </>
           ) : (
-            <p className="text-xs text-gray-500">No findings yet -- still scanning.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">No findings yet -- still scanning.</p>
           )}
         </div>
       )}
 
-      <div className="mt-3 border-t pt-3 space-y-2">
+      <div className="mt-3 border-t border-gray-200 dark:border-gray-700 pt-3 space-y-2">
         <button
           type="button"
-          className="w-full border rounded px-2 py-1 text-sm hover:bg-gray-50"
+          className="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
           onClick={handleOpenSidePanel}
           disabled={windowId === null}
         >
           Open side panel
         </button>
-        <label className="flex items-start gap-2 text-xs text-gray-600">
+        <label className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-300">
           <input
             type="checkbox"
             className="mt-0.5"
@@ -213,22 +214,30 @@ export function Popup() {
             popup).
           </span>
         </label>
-        <p className="text-[11px] text-gray-400">
+        <p className="text-[11px] text-gray-400 dark:text-gray-500">
           Chrome controls which side the panel appears on. To move it left, use
           the panel's own menu in Chrome -- an extension can't set this.
         </p>
 
+        <div>
+          <div className="text-xs mb-1">Appearance</div>
+          <ThemeToggle
+            value={settings.theme}
+            disabled={!loaded}
+            onChange={(theme) => handleSettingChange({ theme })}
+          />
+        </div>
       </div>
 
-      <p className="text-xs text-gray-400 mt-3">
+      <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
         Flags potentially manipulative patterns. Scanning is user-initiated, per
         page. Open the side panel for details.
       </p>
 
-      <div className="mt-3 border-t pt-3">
+      <div className="mt-3 border-t border-gray-200 dark:border-gray-700 pt-3">
         <button
           type="button"
-          className="w-full border rounded px-2 py-1 text-xs bg-white hover:bg-gray-50 disabled:opacity-50 mb-2"
+          className="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-xs bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 mb-2"
           onClick={handleArchiveScan}
           disabled={archiveStatus === "saving" || tabId === null}
         >
@@ -237,7 +246,9 @@ export function Popup() {
         {archiveMessage && (
           <p
             className={`text-[11px] mb-2 ${
-              archiveStatus === "error" ? "text-red-600" : "text-green-700"
+              archiveStatus === "error"
+                ? "text-red-600 dark:text-red-400"
+                : "text-green-700 dark:text-green-400"
             }`}
           >
             {archiveMessage}
@@ -246,18 +257,18 @@ export function Popup() {
 
         <button
           type="button"
-          className="text-xs underline text-gray-500 hover:text-gray-700"
+          className="text-xs underline text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           onClick={handleExportTrace}
         >
           Download debug trace (JSON)
         </button>
         {exportStatus === "sent" && (
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
             Check your downloads -- the file saves from the page tab, not this popup.
           </p>
         )}
         {exportStatus === "error" && (
-          <p className="text-xs text-red-500 mt-1">
+          <p className="text-xs text-red-500 dark:text-red-400 mt-1">
             Couldn't reach this tab's content script. Reload the page and try again.
           </p>
         )}

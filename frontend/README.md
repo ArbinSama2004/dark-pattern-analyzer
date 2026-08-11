@@ -17,7 +17,7 @@ frontend/
       content.ts        # extraction + MutationObserver + local rules
       background.ts     # batching, dedupe, retry, session cache
       sidepanel/        # React: grouped findings, page score, explanations
-      popup/            # scan/overlay toggles, side-panel preference
+      popup/            # scan/overlay toggles, side-panel + theme preference
     lib/
       extract/          # TreeWalker, shadow DOM, same-origin iframes
       rules/            # the 11 deterministic detectors
@@ -25,8 +25,9 @@ frontend/
       resolve.ts        # prediction -> live DOM element, refusing to guess
       merge.ts          # rule + model merge policy
       settings.ts       # persisted user settings
+      theme.ts          # light/dark/system for the popup and side panel
       hash.ts           # occurrence id and model cache key
-    ui/                 # shadow-root-isolated overlay components
+    ui/                 # shadow-root-isolated overlay components + shared controls
   scripts/
     generate-icons.py   # regenerates src/public/icon/*.png
 ```

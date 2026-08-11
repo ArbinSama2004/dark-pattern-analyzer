@@ -155,8 +155,42 @@ function classAndId(el: Element): string {
   return `${cls} ${el.id ?? ""}`;
 }
 
+/**
+ * Keyword match on whole words, not substrings.
+ *
+ * `text.includes("cancel")` matches inside "Cancelling" and "Cancellation".
+ * Measured on a real Amazon headphones page: **28 elements were assigned
+ * `role=decline`, and 28 of 28 were noise-*cancelling* product titles.* A
+ * title typed as a decline control then fires `cancel_offsite` and
+ * `cta_asymmetry`, and tells the model the string is a decline button --
+ * 12 of that page's 50 findings came from this one missing boundary.
+ *
+ * `\b` in JavaScript is defined against `[A-Za-z0-9_]`, so a Devanagari
+ * keyword has no word boundaries anywhere and a bounded pattern would never
+ * match. Hindi and Nepali keywords therefore keep substring semantics --
+ * which is also the correct behaviour for a script that does not delimit
+ * words the way the boundary assertion assumes.
+ */
+const LATIN_KEYWORD_RE = /^[\x20-\x7E]+$/;
+const keywordPatterns = new Map<string, RegExp | null>();
+
+function keywordPattern(keyword: string): RegExp | null {
+  if (!keywordPatterns.has(keyword)) {
+    keywordPatterns.set(
+      keyword,
+      LATIN_KEYWORD_RE.test(keyword)
+        ? new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i")
+        : null,
+    );
+  }
+  return keywordPatterns.get(keyword) ?? null;
+}
+
 function matchesAny(text: string, keywords: string[]): boolean {
-  return keywords.some((kw) => text.includes(kw.toLowerCase()));
+  return keywords.some((kw) => {
+    const pattern = keywordPattern(kw);
+    return pattern ? pattern.test(text) : text.includes(kw.toLowerCase());
+  });
 }
 
 function closest(el: Element, selector: string): Element | null {
@@ -181,8 +215,18 @@ function closest(el: Element, selector: string): Element | null {
  * (as its own isolated node) got flagged while this one silently didn't.
  * Falls back to recomputing from the element for callers (tests, or any
  * future caller) that don't have extract.ts's candidate text on hand.
+ *
+ * `isAnimated` is whether this element's text has been observed changing on a
+ * regular cadence (lib/timer-tracker.ts). It gates the timer branch -- see the
+ * comment there. Defaults to false, so a caller that cannot supply it gets the
+ * conservative answer rather than a timer inferred from text shape alone.
  */
-export function inferRole(el: Element, lang: string, candidateText?: string): Role {
+export function inferRole(
+  el: Element,
+  lang: string,
+  candidateText?: string,
+  isAnimated = false,
+): Role {
   const accessibleName =
     el.getAttribute("aria-label") ?? el.getAttribute("title") ?? "";
   const text = (candidateText?.toLowerCase() ?? normalizedText(el)) || accessibleName.toLowerCase();
@@ -258,8 +302,23 @@ export function inferRole(el: Element, lang: string, candidateText?: string): Ro
     ) {
       return "fine_print";
     }
+    // A countdown ticks; a video's duration label does not. `MM:SS` alone is
+    // not evidence of a deadline -- the shape is identical, and the
+    // video-player exclusion below it can only recognise players whose class
+    // names it happens to list. A real Amazon page's video carousel matched
+    // none of them, and all 10 of its clip lengths ("0:40", "13:42") became
+    // role=timer, which then told the model to read them as urgency: 10 of
+    // that page's 50 findings.
+    //
+    // Observed cadence is the signal that actually separates the two, it is
+    // already measured live (lib/timer-tracker.ts), and `countdown_timer`
+    // already requires it -- the role now agrees with the rule instead of
+    // trusting the text shape. A genuine countdown is typed on the tick after
+    // it is first seen rather than immediately, which costs one second on a
+    // page that then has the finding for as long as the tab is open.
     if (
-      (TIMER_CLASS_RE.test(attrs) || /\b\d{1,2}:\d{2}(:\d{2})?\b/.test(text)) &&
+      (TIMER_CLASS_RE.test(attrs) ||
+        (isAnimated && /\b\d{1,2}:\d{2}(:\d{2})?\b/.test(text))) &&
       !isVideoPlayerContext(el)
     ) {
       return "timer";

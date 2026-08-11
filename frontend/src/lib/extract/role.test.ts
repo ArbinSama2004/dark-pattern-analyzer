@@ -186,10 +186,57 @@ describe("inferRole discount detection", () => {
   });
 });
 
+function mountedRole(html: string, lang = "en"): string {
+  return inferRole(mount(html), lang);
+}
+
 describe("inferRole timer detection vs. video player duration/progress", () => {
-  it("infers timer from a bare MM:SS string outside any video context", () => {
+  it("infers timer from a bare MM:SS string only once it has been seen ticking", () => {
+    // Changed deliberately. The class-name exclusion below could only
+    // recognise players it had a name for, and a real Amazon page's video
+    // carousel matched none of them: 10 of its 12 role=timer elements were
+    // clip lengths, and all 10 became false_urgency findings.
+    //
+    // "MM:SS" is a shape, not evidence of a deadline. A countdown ticks and a
+    // duration does not, cadence is already measured live, and the
+    // countdown_timer rule already requires it -- so the role now requires it
+    // too. The cost is that a genuine countdown is typed on the tick after it
+    // is first seen rather than immediately.
     const el = mount("<span>02:15</span>");
+
+    expect(inferRole(el, "en")).toBe("body");
+    expect(inferRole(el, "en", undefined, true)).toBe("timer");
+  });
+
+  it("still infers timer from an explicit countdown class without waiting for a tick", () => {
+    // A site that names the element `countdown` has already said what it is;
+    // there is nothing to wait for.
+    const el = mount(`<span class="countdown-timer">02:15</span>`);
     expect(inferRole(el, "en")).toBe("timer");
+  });
+
+  it("does not type a product title as a decline control", () => {
+    // "cancel" was matched as a substring, so every noise-Cancelling product
+    // title became role=decline. Measured on one real Amazon page: 28 of 28
+    // role=decline elements were headphone titles, and they produced 12 of
+    // the page's 50 findings.
+    const el = mount(
+      "<span>Soundcore by Anker Q20i Hybrid Active Noise Cancelling Headphones</span>",
+    );
+
+    expect(inferRole(el, "en")).not.toBe("decline");
+  });
+
+  it("still types a real cancel control as a decline control", () => {
+    expect(mountedRole("<button>Cancel</button>")).toBe("decline");
+    expect(mountedRole("<button>Cancel my order</button>")).toBe("decline");
+  });
+
+  it("keeps substring matching for Devanagari, where \\b cannot apply", () => {
+    // JavaScript defines \b against [A-Za-z0-9_], so a bounded Devanagari
+    // pattern matches nothing at all. Hindi and Nepali keywords therefore
+    // keep substring semantics.
+    expect(mountedRole("<button>रद्द गर्नुहोस्</button>", "ne")).toBe("decline");
   });
 
   it("does not infer timer from a duration label inside a video player container", () => {

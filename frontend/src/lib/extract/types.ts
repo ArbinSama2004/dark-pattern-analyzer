@@ -1,7 +1,9 @@
 import type { Lang } from "../taxonomy";
 import type { Role } from "../roles";
+import type { Field } from "./fields";
 
 export type { Role };
+export type { Field };
 
 export type Step = "product" | "cart" | "payment";
 
@@ -12,6 +14,12 @@ export interface Candidate {
   text: string; // innerText, trimmed, collapsed whitespace, capped at 200 chars
   tag: string; // tagName.toLowerCase()
   role: Role;
+  /** Which part of a product listing this text is (title, price, discount,
+   * ...), inferred from structural evidence rather than CSS class names --
+   * see fields.ts. Local to the extension: rules gate on it, and it appears
+   * in the debug trace. It is deliberately NOT sent to the backend, whose
+   * model input format is frozen (invariant #2). */
+  field: Field;
   lang: Lang;
   visible: boolean;
   font_px: number | null;

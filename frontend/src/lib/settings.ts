@@ -22,6 +22,12 @@
  * keys that can be observed mid-update in an inconsistent combination.
  */
 
+/** Appearance of the extension's own surfaces. "system" follows the OS.
+ * See lib/theme.ts for why there are three values and not two. */
+export type Theme = "system" | "light" | "dark";
+
+export const THEMES: readonly Theme[] = ["system", "light", "dark"];
+
 export interface Settings {
   /** Extract and classify new candidates. Off leaves existing findings alone. */
   scanEnabled: boolean;
@@ -30,6 +36,9 @@ export interface Settings {
   overlayVisible: boolean;
   /** Clicking the toolbar icon opens the side panel instead of the popup. */
   openSidePanelOnIconClick: boolean;
+  /** Light/dark appearance of the popup and side panel. Not the on-page
+   * overlay, whose colours belong to the page it sits on. */
+  theme: Theme;
 }
 
 // There is deliberately no "upload traces" setting here. Archiving a scan
@@ -42,6 +51,7 @@ export const DEFAULT_SETTINGS: Settings = {
   scanEnabled: true,
   overlayVisible: true,
   openSidePanelOnIconClick: true,
+  theme: "system",
 };
 
 export const SETTINGS_KEY = "dp/settings";
@@ -66,6 +76,12 @@ export function normalizeSettings(raw: unknown): Settings {
       typeof stored.openSidePanelOnIconClick === "boolean"
         ? stored.openSidePanelOnIconClick
         : DEFAULT_SETTINGS.openSidePanelOnIconClick,
+    // Checked against the allowed set, not just `typeof === "string"`: an
+    // unrecognised value would otherwise reach applyTheme and be written
+    // straight into `color-scheme`.
+    theme: THEMES.includes(stored.theme as Theme)
+      ? (stored.theme as Theme)
+      : DEFAULT_SETTINGS.theme,
   };
 }
 

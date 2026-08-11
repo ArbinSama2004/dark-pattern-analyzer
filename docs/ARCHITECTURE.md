@@ -141,6 +141,10 @@ fight the synthetic data.
 
 ### 4.1 Extension — content script
 
+> Step-by-step data flow, including the duplicate collapse and the field-inference
+> layer added on 2026-08-11, is in [DATAFLOW.md](DATAFLOW.md). This section stays
+> the design rationale.
+
 **Responsibility:** turn a live DOM into a clean, deduplicated list of classification
 candidates plus structural signals.
 

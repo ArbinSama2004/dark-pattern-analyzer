@@ -1,5 +1,7 @@
 import type { Lang } from "../taxonomy";
 import { occurrenceId } from "../hash";
+import { FALLBACK_ROLE } from "../roles";
+import { findCardRoot, inferField, refineTitleWithinCard, type Field } from "./fields";
 import { inferRole } from "./role";
 import { stableSelector } from "./selector";
 import { stickyChromeAncestor } from "./sticky";
@@ -216,6 +218,97 @@ export interface CandidateWithElement {
   el: Element;
 }
 
+/** True if the element contributes text of its own, rather than only
+ * borrowing its inline children's via leafBlockText. */
+function hasOwnText(el: Element): boolean {
+  return Array.from(el.childNodes).some(
+    (n) => n.nodeType === Node.TEXT_NODE && (n.textContent ?? "").trim().length > 0,
+  );
+}
+
+/** Distance from the document root, for ordering ancestors closest-first. */
+function depthOf(el: Element): number {
+  let depth = 0;
+  for (let node = el.parentElement; node; node = node.parentElement) depth += 1;
+  return depth;
+}
+
+/**
+ * Drops a wrapper candidate when a descendant candidate carries the identical
+ * text, keeping the innermost element.
+ *
+ * The leaf-block route above and ordinary direct-text extraction both fire on
+ * the same words whenever a site wraps a single inline node in a block:
+ *
+ *   <div class="sold"><span>958 sold</span></div>
+ *
+ * The <div> has no direct text, so leafBlockText coalesces its child and emits
+ * "958 sold" anchored to the div; the walker then reaches the <span>, which
+ * has that text directly, and emits it again. Both survive the `seen` dedupe
+ * because that is keyed by occurrenceId, which folds in the selector, and the
+ * two selectors genuinely differ. Measured on a Daraz-shaped product card:
+ * 13 candidates for 8 distinct strings, five of them doubled. On the page that
+ * is two badges stacked on one string, and the same content counted twice in
+ * the page score.
+ *
+ * The innermost element is kept because it is the tightest box around the
+ * words being judged. That also fixes a second symptom: <img> is an inline
+ * tag, so a card link <a><img><span>title</span></a> qualifies as a leaf block
+ * whose candidate text is the title but whose *element* spans the image --
+ * anchoring a badge there, and outlining the image on click, for text that
+ * occupies a corner of it.
+ *
+ * Two deliberate narrowings, so this stays a duplicate-collapse and not a
+ * general "prefer children" policy:
+ *
+ * 1. Only exact text equality collapses. `<div class="price"><s>Rs. 2,499</s>
+ *    <span>Rs. 1,199</span></div>` yields a joined string no child has, and
+ *    all three candidates are kept -- the joined one is the price comparison,
+ *    which is the thing worth judging.
+ * 2. Only a wrapper with no text of its own is dropped. `<div>Hello<span>Hello
+ *    </span></div>` renders the word twice, and both occurrences are real.
+ *
+ * The wrapper's role is not lost. Sites put the meaningful class name on the
+ * wrapper (`stock-info`, `pdp-discount`) and nothing on the inline child, so
+ * the child's role infers as the `body` fallback while the wrapper's is
+ * `stock` or `promo`. Role is part of the model input string, so discarding it
+ * would change what the model is asked -- the closest ancestor's non-fallback
+ * role is adopted instead.
+ */
+function collapseNestedDuplicates(pairs: CandidateWithElement[]): CandidateWithElement[] {
+  const byText = new Map<string, CandidateWithElement[]>();
+  for (const pair of pairs) {
+    const group = byText.get(pair.candidate.text);
+    if (group) group.push(pair);
+    else byText.set(pair.candidate.text, [pair]);
+  }
+
+  const dropped = new Set<CandidateWithElement>();
+  for (const group of byText.values()) {
+    if (group.length < 2) continue;
+
+    for (const inner of group) {
+      const wrappers = group.filter(
+        (outer) => outer !== inner && !hasOwnText(outer.el) && outer.el.contains(inner.el),
+      );
+      if (wrappers.length === 0) continue;
+
+      for (const wrapper of wrappers) dropped.add(wrapper);
+
+      // Closest ancestor first: the nearest wrapper describes this text more
+      // specifically than one several levels up.
+      if (inner.candidate.role === FALLBACK_ROLE) {
+        const inherited = wrappers
+          .sort((a, b) => depthOf(b.el) - depthOf(a.el))
+          .find((w) => w.candidate.role !== FALLBACK_ROLE);
+        if (inherited) inner.candidate.role = inherited.candidate.role;
+      }
+    }
+  }
+
+  return dropped.size === 0 ? pairs : pairs.filter((pair) => !dropped.has(pair));
+}
+
 /**
  * Walks the document (plus open shadow roots and same-origin iframes),
  * extracts candidate text nodes, and returns deduplicated
@@ -232,6 +325,7 @@ export interface CandidateWithElement {
 export async function extractCandidatesWithElements(
   lang: Lang,
   root: ParentNode = document,
+  isAnimated: (selector: string) => boolean = () => false,
 ): Promise<CandidateWithElement[]> {
   const seen = new Set<string>();
   const out: CandidateWithElement[] = [];
@@ -321,7 +415,8 @@ export async function extractCandidatesWithElements(
       // from el.textContent directly, which can disagree with the joined
       // text actually sent to the model whenever leafBlockText() had to
       // insert a separating space that the raw DOM didn't have.
-      const role = inferRole(el, lang, candidateText);
+      const animated = isAnimated(selector);
+      const role = inferRole(el, lang, candidateText, animated);
       const htmlEl = el instanceof HTMLElement ? el : null;
       const style = htmlEl ? getComputedStyle(htmlEl) : null;
 
@@ -335,12 +430,13 @@ export async function extractCandidatesWithElements(
           visible: true,
           font_px: style ? parseFloat(style.fontSize) : null,
           contrast: htmlEl ? contrastRatio(htmlEl) : null,
+          field: inferField(el, candidateText, role),
           checked:
             el instanceof HTMLInputElement &&
             (el.type === "checkbox" || el.type === "radio")
               ? el.checked
               : null,
-          is_animated: false, // set by the timer-cadence tracker, see entrypoints/content.ts
+          is_animated: animated,
           step,
           selector,
         },
@@ -349,7 +445,44 @@ export async function extractCandidatesWithElements(
     }
   }
 
-  return out;
+  return assignTitleFields(collapseNestedDuplicates(out));
+}
+
+/**
+ * Second field pass, the one that needs more than a single element to decide.
+ *
+ * `inferField` runs during the walk and can only see one element at a time,
+ * which is enough for a discount or a struck price but not for a title: a
+ * title is only recognisable *relative to the card it sits in* (the longest
+ * text inside that card's own link). Run after collapsing duplicates so the
+ * "longest" comparison sees each string once, and after the whole walk so
+ * every card's candidates are available together.
+ *
+ * Product detail pages have no repeating cards, so findCardRoot returns null
+ * for everything and this pass does nothing -- there the `<h1>` branch in
+ * inferField already identifies the title.
+ */
+function assignTitleFields(pairs: CandidateWithElement[]): CandidateWithElement[] {
+  const byCard = new Map<Element, Array<{ el: Element; text: string; field: Field }>>();
+  const views = new Map<CandidateWithElement, { el: Element; text: string; field: Field }>();
+
+  for (const pair of pairs) {
+    if (pair.candidate.field !== "unknown") continue;
+    const card = findCardRoot(pair.el);
+    if (!card) continue;
+    const view = { el: pair.el, text: pair.candidate.text, field: pair.candidate.field };
+    views.set(pair, view);
+    const group = byCard.get(card);
+    if (group) group.push(view);
+    else byCard.set(card, [view]);
+  }
+
+  for (const [card, entries] of byCard) refineTitleWithinCard(entries, card);
+
+  for (const [pair, view] of views) {
+    if (view.field !== pair.candidate.field) pair.candidate.field = view.field;
+  }
+  return pairs;
 }
 
 /** Candidate-data-only convenience wrapper for callers (and tests) that
@@ -358,7 +491,8 @@ export async function extractCandidatesWithElements(
 export async function extractCandidates(
   lang: Lang,
   root: ParentNode = document,
+  isAnimated: (selector: string) => boolean = () => false,
 ): Promise<Candidate[]> {
-  const pairs = await extractCandidatesWithElements(lang, root);
+  const pairs = await extractCandidatesWithElements(lang, root, isAnimated);
   return pairs.map((p) => p.candidate);
 }
