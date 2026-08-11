@@ -1,5 +1,9 @@
 # Dark Pattern Detection — Phase Plan and Implementation Guide
 
+> **Historical planning document.** Counts and scope here describe what was
+> planned, not what shipped — e.g. "the eight rules" below became eleven. For
+> current behaviour see `DATAFLOW.md` and `ARCHITECTURE.md`.
+
 **Companion to** `ARCHITECTURE.md` · **Version** 1.0
 
 Nine phases, ordered so that **every phase ends with something demonstrable**. If you

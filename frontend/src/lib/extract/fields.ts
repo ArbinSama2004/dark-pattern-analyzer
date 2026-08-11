@@ -41,7 +41,42 @@ export type Field =
   | "stock"
   | "shipping"
   | "prose"
+  | "personal"
   | "unknown";
+
+/**
+ * Structured personal identifiers.
+ *
+ * Nothing in this project previously kept personal text out of the classify
+ * payload: any visible string meeting the length and visibility filters was
+ * POSTed to the backend as snippet text, including on a checkout or account
+ * page. PROJECT_ARCHITECTURE_AND_DATAFLOW.md section 21 records that as a
+ * verified gap -- there was no allowlist, denylist, redaction or step gate.
+ *
+ * These three patterns are the identifiers recognisable from text alone with
+ * near-certainty, and none of them can ever be a dark pattern:
+ *
+ *   - an email address
+ *   - a payment-card-shaped run of 13-19 digits
+ *   - a long digit/hyphen run: order numbers, account numbers, phone numbers
+ *
+ * **What this deliberately does not do.** It does not detect a person's name,
+ * a street address, or any free-form personal sentence -- those are
+ * indistinguishable from ordinary page text without a model, and a heuristic
+ * that guessed would suppress real findings while still leaking what it
+ * missed. This narrows the exposure; it does not close it, and it is
+ * documented as partial.
+ *
+ * The long-digit rule also captures a *merchant's* published support number
+ * (Jeevee's footer "+977 98011-65960"). That is accepted: a phone number is
+ * never itself a manipulative pattern, and the support-line wording that does
+ * matter ("For any Help You may Call us at") is a separate candidate which is
+ * still classified. `cancel_offsite` reads `href`, not text, so the
+ * cancel-by-phone rule is unaffected.
+ */
+const EMAIL_RE = /[^\s@]+@[^\s@]+\.[^\s@]{2,}/;
+const PAYMENT_CARD_RE = /\b(?:\d[ -]?){13,19}\b/;
+const LONG_ACCOUNT_NUMBER_RE = /\b\d[\d-]{8,}\d\b/;
 
 /** Currency as written across the storefronts this targets: "Rs. 1,199",
  * "NPR 1,199", "₹200", "$19.99". */
@@ -193,6 +228,12 @@ function looksLikeProse(text: string, role: string): boolean {
  */
 export function inferField(el: Element, text: string, role = "body"): Field {
   const tag = el.tagName.toLowerCase();
+
+  // Checked before anything else: an identifier must never be typed as a price
+  // or a title and reach the backend on that basis.
+  if (EMAIL_RE.test(text) || PAYMENT_CARD_RE.test(text) || LONG_ACCOUNT_NUMBER_RE.test(text)) {
+    return "personal";
+  }
 
   if (/^h[1-6]$/.test(tag)) return "title";
   if (DISCOUNT_RE.test(text)) return "discount";

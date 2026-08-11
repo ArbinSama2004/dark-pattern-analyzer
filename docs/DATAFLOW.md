@@ -185,7 +185,8 @@ answer.
 ### Step 4 — Field inference (`lib/extract/fields.ts`)
 
 Which *part of a product listing* the text is: `title`, `price`, `strike_price`,
-`discount`, `rating`, `sold_count`, `stock`, `shipping`, `prose`, or `unknown`.
+`discount`, `rating`, `sold_count`, `stock`, `shipping`, `prose`, `personal`, or
+`unknown`.
 
 Role answers a related question from the element in isolation, which is why a site
 whose wrapper class is `offer-card` turns everything inside it into `promo`, and why
@@ -203,6 +204,7 @@ is inferred from **evidence about the text and its position in a product card**:
 | `shipping` | `free delivery`, `free shipping`, `delivery by` |
 | `title` | a heading tag; or the longest still-unknown text inside the card's own `<a href>`, **only if that card also contains a price, discount, rating or sale count** — repetition alone describes a nav strip and a footer just as well as a product grid |
 | `prose` | 25+ words, or 2+ sentences with 8+ words, on a role that is neither interactive nor consequential UI copy — a review, a Q&A answer, a long description |
+| `personal` | an email address, a payment-card-shaped run of 13–19 digits, or a long digit/hyphen run (order, account or phone number). Checked **before every other field**, so an identifier can never be typed as a price or a title |
 
 **Card detection** (`findCardRoot`) walks up until an ancestor has a sibling
 rendered from the same template — a product grid is by construction a run of
@@ -220,7 +222,17 @@ Two limits are load-bearing:
   `findCardRoot` returns null and only local evidence applies. Consumers must treat
   `unknown` as "no evidence", never as a reason to act.
 
-`prose` earns its own step later: those candidates are **never sent to the model**.
+`personal` and `prose` both earn their own step later: those candidates are
+**never sent to the model**.
+
+For `personal` the reason is privacy rather than accuracy. Until this existed the
+system had **no exclusion of any kind** — every visible string meeting the length
+and visibility filters was POSTed to the backend as snippet text, on a checkout or
+account page as much as anywhere else. It is a **partial** mitigation and is
+documented as one: it catches structured identifiers, and it cannot detect a
+person's name, a street address, or any free-form personal sentence.
+
+For `prose` the reason is accuracy:
 The classifier was fine-tuned on interface copy (p95 34 tokens), a five-sentence
 review is off-distribution, and `confirmshaming` carries the lowest threshold of the
 eight classes (0.11) — measured across three real pages, 28 of 57 findings were
@@ -289,12 +301,12 @@ zero or more `{rule, label}` hits.
 | Rule | Tests | Label |
 |---|---|---|
 | `stock_counter` | text: `only N left` (en/hi/ne), `lowest price`, `limited (time\|offer\|stock)`, `hurry` | `scarcity` |
-| `countdown_timer` | `MM:SS` **and** observed animation cadence | `false_urgency` |
+| `countdown_timer` | observed animation cadence **only** — there is no clock-shape check | `false_urgency` |
 | `viewer_counter` | `N people are viewing/watching` | `social_proof` |
 | `recent_activity` | purchase count bounded to a recent window ("in the last 24 hours") | `social_proof` |
 | `discount_badge` | `role === "promo"` and `-N%` / `N% off` / `save N` | `false_urgency` |
 | `prechecked_optin` | live DOM: marketing checkbox with `checked === true` | `sneaking` |
-| `hidden_optout` | live CSS: decline control with small font / low contrast / low opacity | `obstruction` |
+| `hidden_optout` | live CSS: decline control with small font / low contrast / low opacity | `sneaking` **and** `obstruction` (two hits) |
 | `cta_asymmetry` | live CSS: accept far more prominent than decline | `obstruction` |
 | `late_fee` | new charge appearing at `step === "payment"` | `sneaking` |
 | `cancel_offsite` | cancel routes to `tel:` / `mailto:` / another origin | `obstruction` |
@@ -304,7 +316,7 @@ Matching is plain `RegExp.test()` on the candidate's text: case-insensitive,
 **unanchored**, no tokenisation, no stemming, no fuzzy or semantic matching. A rule
 fires or it does not.
 
-**Field gating.** Hits from the four text-matching rules are dropped when the
+**Field gating.** Hits are dropped when the
 candidate's field is one the rule is known to misfire on
 (`FIELD_DENY_LIST` in `rules/index.ts`). `stock_counter` matching "Limited Stock" is
 correct on a badge reading "Limited Stock — only 3 left" and wrong on "Hot Sale
@@ -313,9 +325,16 @@ the text distinguishes them, and the field does. Measured: that title was flagge
 `scarcity` at the UI's strongest confidence while the classifier called the same
 string benign at 0.896.
 
-Rules that read **live DOM state** are never gated — they judge structure, and
-structure means the same thing wherever it appears. A candidate whose field is
-`unknown` is never blocked.
+Most rules that read **live DOM state** are never gated — they judge structure, and
+structure means the same thing wherever it appears. Three exceptions, each from a
+measured misfire: `cancel_offsite` and `cta_asymmetry` are refused on a `title`
+(a product title is never an interactive control), and `countdown_timer` is refused
+on `price`, `strike_price`, `rating`, `sold_count` and `title` — it tests
+`is_animated` and nothing else, so a rotating price or a live rating would
+otherwise be reported as a deadline.
+
+A candidate whose field is `unknown` is never blocked, and nothing is ever reported
+on a `personal` identifier.
 
 ---
 

@@ -12,6 +12,12 @@ import { createClassifyClient, type SnippetResult } from "../lib/api/classify";
 import { createExplainClient, ExplainApiError } from "../lib/api/explain";
 import { createTraceClient, TraceApiError } from "../lib/api/traces";
 import { mergeFindings, computePageScore, withheldModelFindings } from "../lib/merge";
+import {
+  adoptCache,
+  cacheVersionOf,
+  reconcileCacheVersion,
+  type CacheEnvelope,
+} from "../lib/classify-cache";
 import { modelCacheKey } from "../lib/hash";
 import type { CandidateWithHits } from "../lib/messaging";
 import {
@@ -94,12 +100,12 @@ async function buildModelKeys(
   return new Map(entries);
 }
 
-async function loadCache(): Promise<Record<string, SnippetResult>> {
+async function loadCache(): Promise<CacheEnvelope> {
   const stored = await chrome.storage.session.get(CACHE_STORAGE_KEY);
-  return (stored[CACHE_STORAGE_KEY] as Record<string, SnippetResult>) ?? {};
+  return adoptCache(stored[CACHE_STORAGE_KEY]);
 }
 
-async function saveCache(cache: Record<string, SnippetResult>): Promise<void> {
+async function saveCache(cache: CacheEnvelope): Promise<void> {
   await chrome.storage.session.set({ [CACHE_STORAGE_KEY]: cache });
 }
 
@@ -209,7 +215,7 @@ async function handleClassifyCandidates(
 
   const uncached = capped.filter(({ candidate }) => {
     const key = modelKeys.get(candidate.id);
-    return key !== undefined && !(key in cache);
+    return key !== undefined && !(key in cache.entries);
   });
   const batches = chunk(uncached, BATCH_SIZE);
 
@@ -229,7 +235,7 @@ async function handleClassifyCandidates(
   function persistProgress(): { items: ClassifyItemResult[]; pageScore: number } {
     for (const { candidate, ruleHits } of capped) {
       const modelKey = modelKeys.get(candidate.id);
-      const modelResult = modelKey ? cache[modelKey] : undefined;
+      const modelResult = modelKey ? cache.entries[modelKey] : undefined;
       const context = {
         field: candidate.field,
         role: candidate.role,
@@ -345,10 +351,23 @@ async function handleClassifyCandidates(
       // result under that occurrence's *model key*, not under `ref` itself,
       // so every other occurrence with the same effective model input --
       // including ones not sent in this batch at all -- can find it too.
+      // Invariant #4, extended across the wire: if the backend is now serving
+      // a different model version or threshold profile than this cache was
+      // built against, every entry in it is an answer from a different
+      // system. Drop them rather than mixing two models' verdicts into one
+      // page.
+      const discarded = reconcileCacheVersion(cache, cacheVersionOf(response.meta));
+      if (discarded > 0) {
+        console.log(
+          `[dark-pattern-analyzer] serving model changed to ${cache.version}; ` +
+            `discarded ${discarded} cached result(s)`,
+        );
+      }
+
       for (const result of response.results) {
         if (!result.ref) continue;
         const key = modelKeys.get(result.ref);
-        if (key) cache[key] = result;
+        if (key) cache.entries[key] = result;
       }
     } catch (err) {
       // A batch failing after retries shouldn't take down the whole page's

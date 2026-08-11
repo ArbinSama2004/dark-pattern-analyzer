@@ -56,7 +56,6 @@ describe("field gating", () => {
       "prechecked_optin",
       "hidden_optout",
       "forced_action_gate",
-      "countdown_timer",
       "late_fee",
     ]) {
       for (const field of ["title", "price", "rating", "discount"] as const) {
@@ -72,6 +71,30 @@ describe("field gating", () => {
     expect(ruleAllowedOnField("cancel_offsite", "title")).toBe(false);
     expect(ruleAllowedOnField("cta_asymmetry", "title")).toBe(false);
     expect(ruleAllowedOnField("cancel_offsite", "unknown")).toBe(true);
+  });
+
+  it("does not call a ticking price or rating a countdown", () => {
+    // `countdown_timer` tests `is_animated` and nothing else -- there is no
+    // clock-shape check anywhere in it -- so a rotating price, a live rating
+    // or an animated sale count would all have been reported as
+    // `false_urgency`. Naming the fields where a changing number is not a
+    // deadline is narrower than inventing a text-shape test, which a real
+    // "2 days 04 hours" countdown would fail.
+    for (const field of ["price", "strike_price", "rating", "sold_count", "title"] as const) {
+      expect(ruleAllowedOnField("countdown_timer", field)).toBe(false);
+    }
+    // Still free where a ticking number really is a deadline, and on the
+    // honest absence of evidence.
+    expect(ruleAllowedOnField("countdown_timer", "stock")).toBe(true);
+    expect(ruleAllowedOnField("countdown_timer", "unknown")).toBe(true);
+  });
+
+  it("never lets a rule report on a personal identifier", () => {
+    // An email address or an order number is not a manipulative pattern in
+    // any field, and it never reaches the model either (content.ts).
+    for (const rule of ["stock_counter", "recent_activity", "viewer_counter", "discount_badge"]) {
+      expect(ruleAllowedOnField(rule, "personal")).toBe(false);
+    }
   });
 
   it("does not run text-matching rules over customer reviews", () => {

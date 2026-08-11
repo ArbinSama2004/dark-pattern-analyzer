@@ -139,6 +139,13 @@ fight the synthetic data.
 
 ## 4. Component design
 
+> **The `/v1/classify` JSON shown in this document is illustrative, not the
+> implemented contract.** The shipped request is `{snippets:[{text, tag, role,
+> lang, ref}]}` and the response is `{results:[{snippet_id, ref, findings,
+> benign, benign_score, scores, cached}], meta}`; the page score is computed
+> client-side, not returned. `backend/src/app/schemas/classify.py` is the
+> source of truth, and `frontend/src/lib/api/classify.ts` mirrors it.
+
 ### 4.1 Extension — content script
 
 > Step-by-step data flow, including the duplicate collapse and the field-inference

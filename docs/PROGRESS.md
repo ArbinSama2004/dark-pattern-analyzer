@@ -361,6 +361,66 @@ the next thing needed.
 
 ---
 
+## Source-verified architecture audit, and the four changes it produced (2026-08-11)
+
+`PROJECT_ARCHITECTURE_AND_DATAFLOW.md` was written as a read-only pass over the
+executable source, tagging every claim VERIFIED / INFERRED / DOCUMENTED-BUT-NOT-
+VERIFIED / UNKNOWN. It found eight documentation-versus-code mismatches. Four
+changes followed.
+
+**A privacy gap existed and nobody had written it down.** There was no exclusion of
+any kind: every visible string meeting the length and visibility filters was POSTed
+to `/v1/classify`, on a checkout or account page as much as a product page. A tenth
+field value, `personal`, now catches email addresses, payment-card-shaped digit runs
+and long order/account/phone numbers, checked *before every other field* so an
+identifier can never be typed as a price and travel on that basis. Those candidates
+are never sent and no rule may report on them.
+
+Exclusion rather than redaction, because a partially-scrubbed identifier is worse
+than none. No page-type gate, because checkout is exactly where `late_fee`,
+`forced_action` and pre-checked opt-ins live -- gating on `step` would blind the tool
+where its best evidence is. It does **not** detect names or street addresses; a test
+asserts that a real captured address is not typed `personal`, so the limitation
+cannot be quietly forgotten.
+
+**Invariant #4 stopped at the wire.** The backend folds model version and threshold
+profile into its own `cache_key`; the extension's cache was keyed by
+lang+tag+role+text alone. Restarting the backend on a different profile left every
+open tab serving the previous model's answers for the rest of the browser session.
+The cache is now an envelope stamped with `${model_version}:${threshold_profile}`
+from response `meta`, discarded when that changes; a cache from an older build is
+dropped rather than adopted.
+
+That module started inline in `background.ts` with its logic restated in a test --
+which the test's own comment admitted could drift. The production build then
+rejected the test file outright, because WXT treats every file under `entrypoints/`
+as an entrypoint and it collided with `background`. Extracting it to
+`lib/classify-cache.ts` fixed both problems at once. **The build caught a design
+weakness the tests could not.**
+
+**`countdown_timer` tests `is_animated` and nothing else.** There is no clock-shape
+check anywhere in it, so a rotating price or a live rating would be reported as a
+deadline. Requiring `MM:SS` was the obvious fix and is wrong -- a real countdown
+rendered "Ends in 1 day 06:44:40" appears verbatim in a captured trace and would
+fail it. Field-gating instead: refused on `price`, `strike_price`, `rating`,
+`sold_count`, `title`. A ticking number in an `unknown` field is still
+`false_urgency`, and `unknown` is the majority field on every real page measured.
+
+**One audit finding was wrong, and the reason is worth keeping.** M5 claimed
+`hash.ts` used a space separator where the backend uses NUL. It never did. The file
+stored a **literal NUL byte** instead of the escape `"\u0000"`, and a raw NUL is
+invisible to every tool used to read source: `grep` treats the file as binary and
+silently reports nothing, `git diff` refuses to show it, and every viewer renders it
+as a space. The byte is now written as an escape -- behaviourally identical, and no
+longer able to mislead. The audit document's own first draft had the same defect,
+having embedded two raw NULs while quoting that very separator.
+
+The lesson generalises past this file: **a tool reporting nothing is not the same as
+a tool reporting no matches**, and this is the second time in this project that a
+confident reading of invisible state was wrong.
+
+---
+
 ## Known open items
 
 | Item | Priority | Stage |

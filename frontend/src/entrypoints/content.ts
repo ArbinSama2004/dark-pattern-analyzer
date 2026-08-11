@@ -496,7 +496,14 @@ export default defineContentScript({
           // findings, every one of them a false positive. Local rules still
           // run on it (a structural gate inside a long modal paragraph is
           // still a gate); only the model round trip is skipped.
-          candidate.field !== "prose",
+          candidate.field !== "prose" &&
+          // Structured personal identifiers -- an email address, a
+          // card-shaped digit run, an order or account number -- never leave
+          // the machine. None of them can be a dark pattern, and until now
+          // there was no exclusion of any kind: on a checkout or account page
+          // this text was POSTed like any other snippet. See fields.ts for
+          // what this does and does not catch.
+          candidate.field !== "personal",
       );
 
       // Base trace entry for every candidate this pass saw, whether new or

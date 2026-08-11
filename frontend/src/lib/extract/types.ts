@@ -10,8 +10,16 @@ export type Step = "product" | "cart" | "payment";
 /** One extracted DOM candidate, matching the field table in
  * docs/ARCHITECTURE.md section 4.1. */
 export interface Candidate {
-  id: string; // sha1(lang + "\0" + text), set by hash.ts after extraction
-  text: string; // innerText, trimmed, collapsed whitespace, capped at 200 chars
+  /** occurrenceId: sha1(lang + NUL + selector + NUL + text) -- see hash.ts.
+   * Identity of one DOM node, not of a string: the selector is folded in so
+   * three separate "Add to Cart" buttons stay three candidates. */
+  id: string;
+  /** The element's own text nodes joined, or -- when it has none and all its
+   * children are inline -- its inline children's text joined. Whitespace
+   * collapsed, trimmed, bounded by MIN/MAX_TEXT_LENGTH. Deliberately not
+   * `innerText`, which would pull in every descendant's text and duplicate it
+   * onto every ancestor. */
+  text: string;
   tag: string; // tagName.toLowerCase()
   role: Role;
   /** Which part of a product listing this text is (title, price, discount,

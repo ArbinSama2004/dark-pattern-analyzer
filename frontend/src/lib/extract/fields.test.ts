@@ -168,3 +168,55 @@ describe("refineTitleWithinCard", () => {
     expect(entries[0]!.field).toBe("unknown");
   });
 });
+
+describe("personal identifiers", () => {
+  /**
+   * Until this existed there was no privacy exclusion of any kind: every
+   * visible string meeting the length and visibility filters was POSTed to the
+   * backend as snippet text, on a checkout or account page as much as anywhere
+   * else. See PROJECT_ARCHITECTURE_AND_DATAFLOW.md section 21.
+   */
+  it("types the identifiers it can recognise with near-certainty", () => {
+    const cases = [
+      "arbin@example.com",
+      "Order # 112-3456789-1234567",
+      "4111 1111 1111 1111",
+      "+977 98011-65960",
+    ];
+    for (const text of cases) {
+      expect(inferField(el(`<span id="a">${text}</span>`, "#a"), text)).toBe("personal");
+    }
+  });
+
+  it("checks identifiers before every other field", () => {
+    // Order matters: an identifier must never be typed as a price or a title
+    // and then reach the backend on that basis.
+    const text = "Order 112-3456789-1234567";
+    expect(inferField(el(`<h1 id="a">${text}</h1>`, "#a"), text)).toBe("personal");
+  });
+
+  it("does not mistake ordinary commerce text for an identifier", () => {
+    // The exclusion must not quietly blind the tool. Prices, ratings, sale
+    // counts and discounts all carry digits and must survive.
+    const cases: Array<[string, Field]> = [
+      ["Rs. 1,234,567", "price"],
+      ["4.6 out of 5 stars", "rating"],
+      ["958 sold", "sold_count"],
+      ["-54%", "discount"],
+      ["Only 3 items left", "stock"],
+    ];
+    for (const [text, field] of cases) {
+      expect(inferField(el(`<span id="a">${text}</span>`, "#a"), text)).toBe(field);
+    }
+  });
+
+  it("does not claim to detect names or addresses", () => {
+    // Stated as a test so the limitation is impossible to forget: this is a
+    // partial mitigation. Free-form personal text is indistinguishable from
+    // ordinary page text without a model, and is still extracted and sent.
+    const address = "Lazimpat, Kathmandu 2 - Lazimpat area, Bagmati Province";
+    expect(inferField(el(`<span id="a">${address}</span>`, "#a"), address)).not.toBe(
+      "personal",
+    );
+  });
+});

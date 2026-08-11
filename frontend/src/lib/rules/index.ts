@@ -61,17 +61,24 @@ const FIELD_DENY_LIST: Record<string, readonly Field[]> = {
   // "Lowest Price" is marketing prose; docs/ANNOTATION.md treats a settled
   // claim as benign, and the classifier agrees (real titles score benign
   // ~0.90). Ratings and prices are settled facts by the same test.
-  stock_counter: ["title", "rating", "price", "strike_price", "prose"],
-  recent_activity: ["title", "rating", "price", "strike_price", "prose"],
-  viewer_counter: ["title", "rating", "price", "strike_price", "prose"],
+  stock_counter: ["title", "rating", "price", "strike_price", "prose", "personal"],
+  recent_activity: ["title", "rating", "price", "strike_price", "prose", "personal"],
+  viewer_counter: ["title", "rating", "price", "strike_price", "prose", "personal"],
   // A discount belongs on a discount. Left free to fire on `discount` itself,
   // which is what the rule is for.
-  discount_badge: ["title", "rating", "sold_count", "prose"],
+  discount_badge: ["title", "rating", "sold_count", "prose", "personal"],
+  // A ticking number is only a deadline in some places. `countdown_timer`
+  // tests `is_animated` and nothing else -- there is no clock-shape check --
+  // so a live viewer count, a rotating price or an animated rating would all
+  // have been reported as `false_urgency`. Naming the fields where a changing
+  // number is not a countdown is narrower than inventing a text-shape test
+  // that a "2 days 04 hours" deadline would fail.
+  countdown_timer: ["price", "strike_price", "rating", "sold_count", "title", "prose", "personal"],
   // A product title is never an interactive control. Defence in depth behind
   // the word-boundary fix in role.ts: these two only fired on titles because
   // "Noise Cancelling" had been mistyped as role=decline, and a second
   // independent reason to refuse costs nothing.
-  cancel_offsite: ["title", "prose"],
+  cancel_offsite: ["title", "prose", "personal"],
   cta_asymmetry: ["title"],
 };
 
