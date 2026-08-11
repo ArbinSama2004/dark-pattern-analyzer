@@ -105,6 +105,7 @@ describe("refineTitleWithinCard", () => {
     document.body.innerHTML = `
       <div class="card">
         <a href="/p/1"><span id="brand">Nike</span><span id="name">Wireless Earbuds Pro Max</span></a>
+        <span id="price">Rs. 1,199</span>
       </div>`;
     const card = document.querySelector(".card")!;
     const entries = [
@@ -114,6 +115,7 @@ describe("refineTitleWithinCard", () => {
         text: "Wireless Earbuds Pro Max",
         field: "unknown" as Field,
       },
+      { el: document.querySelector("#price")!, text: "Rs. 1,199", field: "price" as Field },
     ];
 
     refineTitleWithinCard(entries, card);
@@ -122,9 +124,27 @@ describe("refineTitleWithinCard", () => {
     expect(entries[0]!.field).toBe("unknown");
   });
 
+  it("does not type a category nav link as a product title", () => {
+    // Measured on a real Jeevee page: 14 category links ("Skin", "Medicines")
+    // and several footer policy links were typed `title` purely because they
+    // sat in a repeating container with a link. `title` suppresses rules, so a
+    // wrong one silently disables detection wherever it lands. A block with no
+    // price, discount, rating or sale count is not selling anything.
+    document.body.innerHTML = `
+      <div class="nav-tile"><img src="skin.png" alt=""><a href="/c/skin"><span id="cat">Skin Care Products</span></a></div>`;
+    const card = document.querySelector(".nav-tile")!;
+    const entries = [
+      { el: document.querySelector("#cat")!, text: "Skin Care Products", field: "unknown" as Field },
+    ];
+
+    refineTitleWithinCard(entries, card);
+
+    expect(entries[0]!.field).toBe("unknown");
+  });
+
   it("never overwrites a field the text's own evidence already earned", () => {
     // A price inside the card's link is still a price, however long it is.
-    document.body.innerHTML = `<div class="card"><a href="/p/1"><span id="p">Rs. 1,199</span></a></div>`;
+    document.body.innerHTML = `<div class="card"><a href="/p/1"><span id="p">Rs. 1,199</span></a><span>4.6 out of 5</span></div>`;
     const card = document.querySelector(".card")!;
     const entries = [
       { el: document.querySelector("#p")!, text: "Rs. 1,199", field: "price" as Field },
@@ -136,10 +156,11 @@ describe("refineTitleWithinCard", () => {
   });
 
   it("ignores text outside any link in the card", () => {
-    document.body.innerHTML = `<div class="card"><span id="x">Some loose text here</span></div>`;
+    document.body.innerHTML = `<div class="card"><span id="x">Some loose text here</span><span id="p">Rs. 999</span></div>`;
     const card = document.querySelector(".card")!;
     const entries = [
       { el: document.querySelector("#x")!, text: "Some loose text here", field: "unknown" as Field },
+      { el: document.querySelector("#p")!, text: "Rs. 999", field: "price" as Field },
     ];
 
     refineTitleWithinCard(entries, card);

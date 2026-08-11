@@ -11,7 +11,7 @@
 import { createClassifyClient, type SnippetResult } from "../lib/api/classify";
 import { createExplainClient, ExplainApiError } from "../lib/api/explain";
 import { createTraceClient, TraceApiError } from "../lib/api/traces";
-import { mergeFindings, computePageScore } from "../lib/merge";
+import { mergeFindings, computePageScore, withheldModelFindings } from "../lib/merge";
 import { modelCacheKey } from "../lib/hash";
 import type { CandidateWithHits } from "../lib/messaging";
 import {
@@ -229,8 +229,20 @@ async function handleClassifyCandidates(
   function persistProgress(): { items: ClassifyItemResult[]; pageScore: number } {
     for (const { candidate, ruleHits } of capped) {
       const modelKey = modelKeys.get(candidate.id);
-      const findings = mergeFindings(ruleHits, modelKey ? cache[modelKey] : undefined);
-      if (findings.length === 0) {
+      const modelResult = modelKey ? cache[modelKey] : undefined;
+      const context = {
+        field: candidate.field,
+        role: candidate.role,
+        text: candidate.text,
+      };
+      const findings = mergeFindings(ruleHits, modelResult, context);
+      // What a merge policy refused, and why. Kept even when nothing visible
+      // survives: a finding suppressed without a record is indistinguishable
+      // from one the model never made, and that is the failure mode this
+      // project keeps paying for.
+      const withheld = withheldModelFindings(modelResult, context);
+
+      if (findings.length === 0 && withheld.length === 0) {
         // Benign after merging. Drop it rather than leaving a stale entry --
         // a snippet can only move to benign if a batch has now resolved it.
         accumulated.delete(candidate.id);
@@ -243,6 +255,7 @@ async function handleClassifyCandidates(
         role: candidate.role,
         selector: candidate.selector,
         findings,
+        ...(withheld.length > 0 ? { withheld } : {}),
       });
     }
 
@@ -255,7 +268,11 @@ async function handleClassifyCandidates(
     }
 
     const withFindings = [...accumulated.values()];
-    const pageScore = computePageScore(withFindings.map((i) => i.findings));
+    // Suppressed-only entries ride along for the trace, but they are not
+    // findings: they must not be scored, badged or counted.
+    const pageScore = computePageScore(
+      withFindings.filter((i) => i.findings.length > 0).map((i) => i.findings),
+    );
     const stored: StoredFindings = {
       pageScore,
       updatedAt: Date.now(),

@@ -466,8 +466,11 @@ function assignTitleFields(pairs: CandidateWithElement[]): CandidateWithElement[
   const byCard = new Map<Element, Array<{ el: Element; text: string; field: Field }>>();
   const views = new Map<CandidateWithElement, { el: Element; text: string; field: Field }>();
 
+  // Every candidate is grouped, not just the still-unknown ones: whether a
+  // repeating block is a product card at all is decided by what else is inside
+  // it (a price, a discount, a rating), so refineTitleWithinCard has to be able
+  // to see its already-typed siblings.
   for (const pair of pairs) {
-    if (pair.candidate.field !== "unknown") continue;
     const card = findCardRoot(pair.el);
     if (!card) continue;
     const view = { el: pair.el, text: pair.candidate.text, field: pair.candidate.field };

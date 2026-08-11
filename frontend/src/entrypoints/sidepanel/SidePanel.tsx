@@ -134,9 +134,17 @@ export function SidePanel() {
     setArchiveState({ status: "idle" });
   }, [tabUrl]);
 
+  /** Items with something to show. Entries carrying only *withheld* findings
+   * are present in storage for the debug trace and must not be counted or
+   * listed here -- nothing was flagged on them. */
+  const flaggedItems = useMemo(
+    () => (stored?.items ?? []).filter((item) => item.findings.length > 0),
+    [stored],
+  );
+
   const grouped = useMemo(() => {
     const map = new Map<Label, ClassifyItemResult[]>();
-    for (const item of stored?.items ?? []) {
+    for (const item of flaggedItems) {
       for (const finding of item.findings) {
         const label = finding.label as Label;
         const list = map.get(label) ?? [];
@@ -145,7 +153,7 @@ export function SidePanel() {
       }
     }
     return map;
-  }, [stored]);
+  }, [flaggedItems]);
 
   function handleScrollTo(selector: string) {
     if (tabId === null) return;
@@ -248,8 +256,8 @@ export function SidePanel() {
       {stored ? (
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
           Page score: <span className="font-medium">{stored.pageScore}/100</span>{" "}
-          ({band}) -- {stored.items.length}{" "}
-          {stored.items.length === 1 ? "snippet" : "snippets"} flagged
+          ({band}) -- {flaggedItems.length}{" "}
+          {flaggedItems.length === 1 ? "snippet" : "snippets"} flagged
         </p>
       ) : (
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">

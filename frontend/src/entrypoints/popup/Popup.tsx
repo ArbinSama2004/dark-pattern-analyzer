@@ -140,7 +140,9 @@ export function Popup() {
     }
   }
 
-  const count = findings?.items.length ?? 0;
+  // Entries that carry only *withheld* findings are stored for the debug trace
+  // and are not flags -- see messaging.ts's ClassifyItemResult.
+  const count = findings?.items.filter((item) => item.findings.length > 0).length ?? 0;
   const band = findings ? scoreBand(findings.pageScore) : null;
 
   return (

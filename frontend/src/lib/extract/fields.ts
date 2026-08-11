@@ -207,6 +207,37 @@ export function inferField(el: Element, text: string, role = "body"): Field {
 }
 
 /**
+ * Fields that only appear where something is being sold. Their presence is what
+ * separates a product card from any other repeating block of links.
+ */
+const PRODUCT_CARD_FIELDS = new Set<Field>([
+  "price",
+  "strike_price",
+  "discount",
+  "rating",
+  "sold_count",
+]);
+
+/**
+ * Is this repeating block actually selling something?
+ *
+ * `findCardRoot` finds repetition, and repetition is everywhere: a category
+ * nav strip, a footer link column and a product grid are structurally
+ * identical. Measured on a real Jeevee page, 14 category links ("Skin",
+ * "Medicines") and several footer policy links ("Return Policy", "नियम तथा
+ * सर्त") were typed `title` on that basis alone -- and `title` is a field that
+ * suppresses rules, so mis-assigning it silently disables detection wherever it
+ * lands.
+ *
+ * Requiring a price, discount, rating or sale count inside the card is the
+ * cheapest signal that separates the two. An image is not enough: those
+ * category tiles each have one.
+ */
+function looksLikeProductCard(entries: Array<{ field: Field }>): boolean {
+  return entries.some((entry) => PRODUCT_CARD_FIELDS.has(entry.field));
+}
+
+/**
  * Card-relative refinement: the title.
  *
  * A product card's title is the text the card's own link is wrapped around --
@@ -222,6 +253,8 @@ export function refineTitleWithinCard(
   entries: Array<{ el: Element; text: string; field: Field }>,
   cardRoot: Element,
 ): void {
+  if (!looksLikeProductCard(entries)) return;
+
   let best: { el: Element; text: string; field: Field } | null = null;
   for (const entry of entries) {
     if (entry.field !== "unknown") continue;

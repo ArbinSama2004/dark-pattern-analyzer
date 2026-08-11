@@ -28,10 +28,15 @@ const CTA_KEYWORDS: Record<string, string[]> = {
   ne: ["किन्नुहोस्", "जारी राख्नुहोस्", "सदस्यता लिनुहोस्"],
 };
 
+// "call us"/"कल गर्न" added after a real trace: a Jeevee footer line offering a
+// support number ("you can call us for any help") was typed role=body, and the
+// model read it as the cancel-by-phone obstruction pattern. Typing it as what it
+// is lets merge.ts apply the support-line policy -- which still reports an
+// obstruction when the wording is actually about cancelling.
 const SUPPORT_KEYWORDS: Record<string, string[]> = {
-  en: ["contact support", "contact us", "help center", "customer service"],
-  hi: ["सहायता केंद्र", "हमसे संपर्क करें"],
-  ne: ["सहायता केन्द्र", "हामीलाई सम्पर्क गर्नुहोस्"],
+  en: ["contact support", "contact us", "help center", "help section", "customer service", "call us"],
+  hi: ["सहायता केंद्र", "हमसे संपर्क करें", "हमें कॉल"],
+  ne: ["सहायता केन्द्र", "हामीलाई सम्पर्क गर्नुहोस्", "हामीलाई कल", "हामीलाई फोन"],
 };
 
 const FINE_PRINT_CLASS_RE =
@@ -135,7 +140,7 @@ const VIDEO_PLAYER_SCAN_DEPTH = 6;
  * duration/progress label with zero rule corroboration, all pattern-matched
  * purely because role=timer told the model "treat this MM:SS as urgency."
  */
-function isVideoPlayerContext(el: Element): boolean {
+export function isVideoPlayerContext(el: Element): boolean {
   let node: Element | null = el;
   for (let depth = 0; node && depth < VIDEO_PLAYER_SCAN_DEPTH; depth += 1, node = node.parentElement) {
     if (node.tagName.toLowerCase() === "video") return true;

@@ -678,3 +678,144 @@ out; a support offer is not that. The most plausible reading is that the model
 learned the cancel-by-phone pattern and carried "call us" across languages. Treat
 this as evidence the model reads Nepali, **not** as evidence it reads it correctly.
 Nepali remains unevaluated.
+
+### After the role/prose changes, same day
+
+Six traces, 1,960 rows: Amazon listing + product, Daraz English + Nepali, Jeevee
+English + Nepali. **Not a strict A/B** -- the Amazon pages are a different listing
+and a different product than the baseline capture above, so the finding totals are
+indicative. The mechanism-level signatures are directly comparable, and they are
+unambiguous.
+
+| signature | before | after |
+|---|---:|---:|
+| `role=decline` elements containing "Cancelling"/"Cancellation" | 28 | **0** |
+| `role=timer` on an Amazon product page (video clip lengths) | 12 | **0** |
+| wrapper/child duplicate extractions | 0 | **0** |
+| rows withheld from the model as prose | -- | **55** |
+
+| trace | rows | findings | field known |
+|---|---:|---:|---:|
+| Amazon listing | 600 | 3 | 64% |
+| Amazon product | 656 | 10 | 53% |
+| Daraz English | 166 | 6 | 33% |
+| Daraz Nepali | 304 | 7 | 18% |
+| Jeevee English | 120 | **0** | 36% |
+| Jeevee Nepali | 114 | 1 | 32% |
+
+Amazon fell from 50 findings on one product page to 13 across two pages. The
+cadence gate did **not** cost the real detections it was the risk of: Daraz's
+flash-sale countdown still resolves (`Ends in` + `09:52:11` -> `false_urgency`,
+with `countdown_timer` firing on 30 and 142 subsequent ticks respectively).
+
+### First real-page Nepali evidence
+
+Daraz Nepali produced **7 findings to the English page's 6**, on the same product,
+including the countdown label `मा सकिदै` and `अब विक्रेतालाई सोध्न ... लग-इन वा दर्ता
+गर्नुहोस्` ("log in or register to ask the seller"), whose English counterpart was
+also flagged. No rule fired for any of them -- these are the classifier reading
+Devanagari on a live page.
+
+One caveat worth keeping: the same login gate was labelled `forced_action` in
+English and `obstruction` in Nepali. Detection is consistent across the language
+pair; the *label* is not. Nepali is still unevaluated in the sense that matters --
+no human-labelled rows -- but this is materially stronger evidence than the single
+Jeevee case above.
+
+### Remaining false-positive families
+
+| count | family | example |
+|---:|---|---|
+| 6 | product marketing / description sentences -> `forced_action` | "Stress Management Score and guided breathing sessions can teach you healthier ways to handle stress." |
+| 2 | support offers -> `obstruction` | "Visit the help section or contact us"; Jeevee's "you can call us for any help" |
+| 2 | accessibility microcopy -> `obstruction` | "To move between items, use your keyboard's up or down arrows." |
+| 2 | review headlines (too short for the prose cut) | "Great for tracking health - *UPDATED* JUNK!!!!" |
+| 2 | `discount_badge` on a bare `-24%` -> `false_urgency` | open policy question, both Daraz pages |
+
+The support-offer family is the same model behaviour in two languages: "contact
+us" / "call us" reads as the cancel-by-phone pattern. It is a training-data
+artifact, not a rule.
+
+`field=title` is also over-assigned: on Jeevee, 14 category nav links ("Skin",
+"Medicines") and several footer policy links were typed `title`, because
+`refineTitleWithinCard` accepts any repeating container with a link. A card with no
+price, discount, rating or image is not a product card.
+
+### Follow-up changes, same day
+
+Three narrow changes aimed at the families above. Each cites the rows that
+prompted it; none is verified on a live page yet -- that needs another capture.
+
+1. **A repeating block must contain a price, discount, rating or sale count
+   before its link text is typed `title`.** Repetition alone describes a category
+   nav strip and a footer link column exactly as well as a product grid. An image
+   is not enough of a signal -- Jeevee's category tiles each have one.
+2. **Model findings are withheld on a product title that is not a heading.** The
+   rules already refused to fire there; the model did not. Headings are excluded
+   deliberately: `inferField` types every `h1`-`h6` as a title, and a modal
+   heading is exactly the copy this tool exists to flag. The stated cost is that
+   two review-headline false positives remain.
+3. **`obstruction` is withheld on a support line whose text is not about
+   cancelling, refunding or unsubscribing**, and `role.ts` now recognises "call
+   us" / "हामीलाई कल" so that such lines are typed `support_link` in the first
+   place. "Call us to cancel your subscription" still reports; "you can call us
+   for any help" does not.
+
+Untouched, and still open: product marketing sentences reading as
+`forced_action` (6 occurrences). Those are 15-18 words in a single sentence, so
+the prose cut cannot reach them without also swallowing genuine forced-action
+copy. They need a structural signal -- a description section -- not a length
+threshold.
+
+## Shadow grouping, first real-page run (2026-08-11)
+
+Three English pages, captured with grouping computing proposals and changing
+nothing.
+
+| trace | rows | findings | withheld as prose | groups proposed |
+|---|---:|---:|---:|---:|
+| Daraz English, flash sale | 244 | 6 | 5 | 3 |
+| Amazon, HP desktop product | 422 | **1** | 20 | 27 |
+| Jeevee English, Cetaphil | 105 | 1 | 1 | 5 |
+
+**The grouping proposals are sound where it matters.** Daraz reconstructed
+`"Ends in 07:31:31"` from its two fragments -- the case that motivated the whole
+change, where the halves had previously drawn two separate findings and, in
+Nepali, two *different* labels. Amazon's 27 proposals include `"18 offers from
+$434.00"`, `"4.5 4.5 out of 5 stars 571"` and `"Set name: 16GB DDR5 RAM"`, all
+currently reaching the model as halves.
+
+**And shadow mode immediately earned its cost.** Two Amazon proposals were
+`"Remaining Time - 0:00"` and `"Remaining Time - 0:36"`, typed
+`timer_label_value`: the video player again, the same family that produced 10
+false positives when role inference trusted the `MM:SS` shape. Had grouping been
+live, those would have been reconstructed and sent as countdowns. Fixed by
+matching the readout wording directly -- Amazon's player matches none of the class
+names `isVideoPlayerContext` knows.
+
+### Amazon showing almost nothing is mostly correct
+
+All 422 candidates were searched for `only N left`, `limited`, `deal ends`,
+`hurry`, `N bought in past month`, `people viewing`, pre-checked boxes and
+countdowns. **None are present on that page.** The only pattern-shaped text is
+`"Hello, sign in"` -- a nav link, correctly benign: `docs/ANNOTATION.md` defines
+`forced_action` as demanding an *unrelated action to proceed*, and a sign-in that
+gates nothing is not that. On the same run, Daraz's `"Login or Register to ask the
+seller now"` **was** flagged `forced_action`, which is the discrimination working.
+
+These pages measure false positives well and recall not at all. Cart, checkout,
+consent banners and subscription flows are where the untested classes live.
+
+### A defect this run exposed in the suppression policies
+
+`modelFindingAllowed` dropped findings **silently**: a trace could not distinguish
+"the model found nothing" from "the model found something and a policy hid it".
+That is the same unauditable suppression argued against when the eligibility-score
+design was rejected, reintroduced two changes later in a different place. Withheld
+findings are now recorded with their reason on the trace row, computed by the same
+function that does the refusing so the two cannot drift.
+
+Still open: 12 Amazon rows are typed `title` without being headings (`"18 offers
+from"`, `"4.5"`, `"Report"`), so model findings there are withheld. Whether
+anything was actually lost is now answerable from the next trace rather than by
+reading source.

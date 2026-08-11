@@ -1,6 +1,6 @@
 import type { Candidate } from "./extract/types";
 import type { RuleHit } from "./rules/types";
-import type { MergedFinding } from "./merge";
+import type { MergedFinding, WithheldFinding } from "./merge";
 import type { ExplainRequest } from "./api/explain";
 import type { StoreTraceRequest } from "./api/traces";
 
@@ -36,6 +36,12 @@ export interface ClassifyItemResult {
   role: string;
   selector: string;
   findings: MergedFinding[];
+  /** Model findings a merge policy refused, with the reason (merge.ts's
+   * withholdReason). Carried so the debug trace can show a suppressed finding
+   * instead of leaving it indistinguishable from the model having said
+   * nothing. An item may have these and no visible findings at all; readers
+   * that render findings must skip those rather than count them. */
+  withheld?: WithheldFinding[];
 }
 
 export interface ClassifyResultMessage {

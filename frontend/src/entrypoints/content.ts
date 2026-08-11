@@ -5,6 +5,7 @@
  * and frontend/README.md.
  */
 import { extractCandidatesWithElements } from "../lib/extract/extract";
+import { proposeGroups, type ProposedGroup } from "../lib/extract/group";
 import { runRules } from "../lib/rules";
 import type { Lang } from "../lib/taxonomy";
 import type {
@@ -73,12 +74,21 @@ interface TraceEntry {
    * useful column when reading a trace back: it says whether a rule fired on
    * a badge or on a seller's title copy. */
   field: string;
+  /** Id of the semantic group this fragment was proposed as part of, if any
+   * (lib/extract/group.ts). **Shadow mode**: this records what grouping
+   * *would* do. Nothing in the pipeline reads it -- the fragment was still
+   * classified on its own. */
+  groupId?: string;
   step: string | null;
   selector: string;
   /** Local rule names that fired for this candidate (independent of the
    * model -- see rules/index.ts). */
   ruleHits: string[];
   sentToModel: boolean;
+  /** Model findings a merge policy refused, with the reason. Empty or absent
+   * means nothing was suppressed -- which is what makes `findingLabels: []`
+   * readable as "the model found nothing" rather than "something was hidden". */
+  withheld?: Array<{ label: string; reason: string }>;
   /** null = no classify response has been observed for this id yet.
    * [] = confirmed benign (sent, and absent from every subsequent
    * response -- see the sendMessage handler in runExtraction for exactly
@@ -191,6 +201,10 @@ export default defineContentScript({
     // its exposure as window.__dpTrace / window.__dpExportTrace() near the
     // bottom of this file.
     const trace = new Map<string, TraceEntry>();
+    /** Proposed semantic groups, and the group each candidate belongs to.
+     * Written every extraction pass, read only by the debug trace. */
+    const proposedGroups = new Map<string, ProposedGroup>();
+    const groupIdByCandidate = new Map<string, string>();
 
     /**
      * Single funnel for every place a results list arrives (the direct
@@ -231,6 +245,8 @@ export default defineContentScript({
       sentIds.clear();
       sentChurnKeys.clear();
       trace.clear();
+      proposedGroups.clear();
+      groupIdByCandidate.clear();
       // Clear the badges immediately rather than waiting for the first
       // classify response of the new page -- stale badges pointing at nodes
       // that no longer exist are worse than none.
@@ -323,6 +339,9 @@ export default defineContentScript({
         const entry = trace.get(item.id);
         if (entry) {
           entry.findingLabels = labels;
+          if (item.withheld?.length) {
+            entry.withheld = item.withheld.map((w) => ({ label: w.label, reason: w.reason }));
+          }
           entry.lastSeenAt = now;
         } else {
           // A result for an id with no base trace entry (e.g. a progress
@@ -338,6 +357,7 @@ export default defineContentScript({
             selector: item.selector,
             ruleHits: [],
             sentToModel: true,
+            withheld: item.withheld?.map((w) => ({ label: w.label, reason: w.reason })),
             findingLabels: labels,
             firstSeenAt: now,
             lastSeenAt: now,
@@ -349,7 +369,9 @@ export default defineContentScript({
     }
 
     (window as unknown as Record<string, unknown>).__dpTrace = trace;
-    (window as unknown as Record<string, unknown>).__dpExportTrace = () => exportTrace(trace);
+    (window as unknown as Record<string, unknown>).__dpGroups = proposedGroups;
+    (window as unknown as Record<string, unknown>).__dpExportTrace = () =>
+      exportTrace(trace, proposedGroups);
 
     /**
      * Extracted candidates sitting near `selector` in the DOM, for use as
@@ -450,6 +472,15 @@ export default defineContentScript({
         recordObservation(candidate.selector, candidate.text);
       }
 
+      // Shadow mode: propose semantic units and record them, but send the
+      // fragments to the model exactly as before. A grouping change that can
+      // silently discard model inputs does not get to run until its proposals
+      // have been read against real pages -- see lib/extract/group.ts.
+      for (const group of proposeGroups(pairs)) {
+        proposedGroups.set(group.id, group);
+        for (const memberId of group.memberIds) groupIdByCandidate.set(memberId, group.id);
+      }
+
       const withHits: CandidateWithHits[] = pairs.map(({ candidate, el }) => ({
         candidate,
         ruleHits: runRules(candidate, el),
@@ -485,6 +516,7 @@ export default defineContentScript({
           tag: candidate.tag,
           role: candidate.role,
           field: candidate.field,
+          groupId: groupIdByCandidate.get(candidate.id),
           step: candidate.step,
           selector: candidate.selector,
           ruleHits: ruleHits.map((h) => h.rule),
@@ -710,7 +742,7 @@ export default defineContentScript({
         } else if (message.type === "dp/export-trace") {
           // Popup-triggered, not a console command -- see messaging.ts's
           // ExportTraceMessage doc comment for why.
-          exportTrace(trace);
+          exportTrace(trace, proposedGroups);
         } else if (message.type === "dp/classify-progress") {
           // Primary overlay update path: pushed from background.ts after
           // every batch. Now works on real e-commerce pages because
@@ -909,6 +941,7 @@ function scheduleTraceSummaryLog(trace: ReadonlyMap<string, TraceEntry>): void {
               ? "benign"
               : r.findingLabels.join("+"),
         ruleHits: r.ruleHits.join(",") || undefined,
+        withheld: r.withheld?.map((w) => w.label).join(",") || undefined,
       })),
     );
   }, 400);
@@ -921,9 +954,22 @@ function scheduleTraceSummaryLog(trace: ReadonlyMap<string, TraceEntry>): void {
  * window.__dpExportTrace(); no `downloads` permission needed since this is
  * just a same-page anchor-click download, not the chrome.downloads API.
  */
-function exportTrace(trace: ReadonlyMap<string, TraceEntry>): void {
+function exportTrace(
+  trace: ReadonlyMap<string, TraceEntry>,
+  groups: ReadonlyMap<string, ProposedGroup>,
+): void {
   const rows = [...trace.values()];
-  const blob = new Blob([JSON.stringify(rows, null, 2)], { type: "application/json" });
+  // Shape changed when shadow grouping arrived: v1 was a bare array of rows.
+  // The version marker is here so a reader never has to guess which it has --
+  // an older trace and a newer one are both valid captures of their build.
+  const payload = {
+    version: 2,
+    url: stripFragment(location.href),
+    capturedAt: new Date().toISOString(),
+    rows,
+    proposedGroups: [...groups.values()],
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -932,7 +978,10 @@ function exportTrace(trace: ReadonlyMap<string, TraceEntry>): void {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
-  console.log(`[dark-pattern-analyzer] exported ${rows.length} trace row(s).`);
+  console.log(
+    `[dark-pattern-analyzer] exported ${rows.length} trace row(s) and ` +
+      `${groups.size} proposed group(s) (shadow mode -- proposals only).`,
+  );
 }
 
 /** Lightweight local mirror of selector.ts's stableSelector, used only by

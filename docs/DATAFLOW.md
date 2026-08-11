@@ -201,7 +201,7 @@ is inferred from **evidence about the text and its position in a product card**:
 | `sold_count` | `958 sold`, `100+ sold` |
 | `stock` | `only N left`, `N left in stock` |
 | `shipping` | `free delivery`, `free shipping`, `delivery by` |
-| `title` | a heading tag; or the longest still-unknown text inside the card's own `<a href>` |
+| `title` | a heading tag; or the longest still-unknown text inside the card's own `<a href>`, **only if that card also contains a price, discount, rating or sale count** — repetition alone describes a nav strip and a footer just as well as a product grid |
 | `prose` | 25+ words, or 2+ sentences with 8+ words, on a role that is neither interactive nor consequential UI copy — a review, a Q&A answer, a long description |
 
 **Card detection** (`findCardRoot`) walks up until an ancestor has a sibling
@@ -230,6 +230,44 @@ modal paragraph is still a gate.
 `field` is **local to the extension**. It gates rules and appears in the debug
 trace; it is not sent to the backend, whose model input format is frozen
 (invariant #2).
+
+### Step 4b — Semantic grouping (`lib/extract/group.ts`) — **shadow mode**
+
+One candidate per element means a UI statement split across elements reaches the
+model in halves. Measured across six real traces: **52% of 1,960 rows are two
+words or fewer**, and the consequences show up in the labels — Daraz's
+`"Ends in"` and `"09:52:11"` were classified separately, and in Nepali came back
+as *two different labels* for one countdown; Jeevee's `"रु."` and `"3190.01"` are
+each half of a price.
+
+Both are one structural shape, and not the sibling adjacency the rendered page
+suggests:
+
+```html
+<time>Ends in<span>09:52:11</span></time>
+<div>3190.01<span>रु.</span></div>
+```
+
+So there is exactly one relation — **containment through inline elements** — and
+it covers the timer label/value pair, the currency/amount pair and the
+strike/current comparison. Reconstruction joins the text nodes with a space,
+because `textContent` gives `"Ends in09:52:11"`: the gap is CSS, not a text node.
+
+Boundaries it refuses to cross:
+
+| Refusal | Why |
+|---|---|
+| a block-level element between members | that is a new logical unit |
+| members in different interactive controls | `<a>` and `<button>` are inline tags, so containment alone would fold a link's label into the prose around it |
+| reconstruction outside 3–200 characters | the same bounds every candidate obeys |
+| a container reconstructing what a nested group already says | keep the inner one — the tighter anchor, the same reason the extractor keeps the innermost duplicate |
+| video-player wording (`Remaining Time`, `elapsed`, `duration`) typed as a countdown | shadow mode caught `"Remaining Time - 0:36"` proposed as a timer on a live Amazon page — the same family that produced 10 false positives when role inference trusted the `MM:SS` shape |
+
+**Nothing acts on the proposals.** No candidate is suppressed, no model request
+changes, no finding is merged. They ride in the debug trace (`proposedGroups`,
+and a `groupId` on each row) so they can be reviewed against real pages before
+being allowed to affect anything — this project's costliest defects were all
+confident, plausible and wrong for weeks.
 
 ### Step 5 — The two hashes (`lib/hash.ts`)
 
@@ -392,6 +430,28 @@ ONNX output axis, `thresholds.json` and every cache key (invariant #1).
 Neither side suppresses the other; both are reported with provenance, and the side
 panel states in words which one produced a finding.
 
+**Two model findings are withheld here** (`modelFindingAllowed`), because the model
+is handed one string and cannot know where it sits:
+
+- on a **product title** that is not a heading — seller copy, the same policy the
+  rules already follow. Headings are excluded on purpose: `inferField` types every
+  `h1`–`h6` as a title, and a modal heading ("Wait! Don't miss out") is exactly what
+  this tool exists to flag.
+- `obstruction` on a **support line** whose text says nothing about cancelling,
+  refunding or unsubscribing. Measured in two languages: "Visit the help section or
+  contact us" and "you can call us for any help" both came back `obstruction`,
+  because the cancel-by-phone pattern is what obstruction looked like in training.
+
+Rule hits are never withheld here — they have already passed their own field gate.
+
+**A withheld finding is recorded, not erased.** Each one is written to the debug
+trace with its reason (`withheld: [{label, reason}]` on the row). Without that, a
+suppressed finding is indistinguishable from one the model never made, and "why is
+this not flagged?" stops being answerable from a trace — the same unauditable
+failure this project has paid for more than once. An item may therefore appear in
+storage with *no* visible findings and only a `withheld` list; the overlay, the page
+score and the side-panel count all skip those.
+
 ### Step 17 — Page score
 
 `sum(2 per likely + 1 per possible)`, capped at 20, scaled to 0–100. Bands: <30 low,
@@ -418,9 +478,14 @@ better than a badge on the wrong element.
 Every candidate the page ever extracted gets one row, updated in place as its fate
 becomes known. Popup → **"Download debug trace (JSON)"**, or `window.__dpExportTrace()`.
 
+The export is `{ version: 2, url, capturedAt, rows, proposedGroups }`. Version 1
+was a bare array of rows; the marker is there so a reader never has to guess.
+
 | Column | Answers |
 |---|---|
 | `text`, `tag`, `role`, `field` | what was extracted, and what it was taken to be |
+| `groupId` | which proposed semantic unit this fragment belongs to, if any (shadow only) |
+| `withheld` | model findings a merge policy refused, with the reason for each |
 | `ruleHits` | which local rules fired |
 | `sentToModel` | whether it reached the backend at all |
 | `findingLabels` | `null` = no response yet · `[]` = confirmed benign · non-empty = the labels |
